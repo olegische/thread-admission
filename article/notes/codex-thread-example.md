@@ -1,36 +1,36 @@
-# Проверка примера Codex для части 01
+# Checking the Codex example in section 1
 
-Редакторская записка, не часть публикуемой статьи.
+Editorial source note, not part of the published article.
 
-Проверено 17 октября 2026 по локальному checkout `/Users/olegromanchuk/Projects/_amnezia/repos/amcode`, HEAD `431f5aa78fd007ec45d591452cfb37ad12c61c15`. Файлы репозитория amcode не изменялись.
+Checked on 2026-10-17 against the local checkout at `/Users/olegromanchuk/Projects/_amnezia/repos/amcode`, HEAD `431f5aa78fd007ec45d591452cfb37ad12c61c15`. No amcode files were modified.
 
-## Выбор представления
+## Choice of representation
 
-Пример показывает сокращённый массив `items` одного хода в **App Server**: запрос пользователя, результат команды, ответ ассистента. Это не полный ответ чтения треда, не файл rollout и не массив Responses API. Названия и поля взяты из определения `ThreadItem`. Сценарий `python export.py`, имена и вывод иллюстративны: это не захваченная сессия и не результат выполнения команды во время редакторской работы.
+The example shows an abbreviated **App Server** `items` array for one turn: a user request, a command record containing its result, and an assistant answer. It is not a complete thread-read response, a rollout file, or a Responses API array. Type names and fields come from `ThreadItem`. The `python export.py` scenario, names, and output are illustrative; they are not a captured session or the result of executing that command during editorial work.
 
-Функция примера — показать различие между типом записи, её происхождением и тем, что она устанавливает. Approval RPC и журнал аудита среды находятся вне переносимого транскрипта в постановке статьи. Разрешения новых действий определяет принимающая среда. Часть 04 развивает пример через результат инспекции CSV, привязанный к вызову инструмента и дайджесту прочитанных байтов.
+The example distinguishes a record's type, its source, and what it establishes. Approval RPCs and the environment's audit log are outside the portable transcript considered by the article. The receiving environment determines permissions for new actions.
 
-## Основания
+## Source evidence
 
-- `codex-rs/app-server-protocol/src/protocol/v2/item.rs`: `ThreadItem`, сериализация `camelCase`; варианты `UserMessage`, `CommandExecution`, `AgentMessage`; определения `CommandExecutionRequestApprovalParams` и `CommandExecutionRequestApprovalResponse`.
-- `codex-rs/app-server-protocol/schema/typescript/v2/ThreadItem.ts`, `UserInput.ts`, `CommandAction.ts`, `CommandExecutionStatus.ts`: проверка имён и форм полей.
-- `codex-rs/app-server-protocol/schema/json/v2/ThreadReadResponse.json`: схема `definitions.ThreadItem`; пример проверяется как массив этих объектов, а не как полный `ThreadReadResponse`. Опущенные поля допускаются JSON-схемой и Rust-десериализацией; это сокращение представления, а не полный вывод сериализатора.
-- `codex-rs/app-server-protocol/src/protocol/common.rs`: RPC `item/commandExecution/requestApproval` связывает параметры запроса и ответ с решением.
-- `codex-rs/app-server-protocol/schema/json/CommandExecutionRequestApprovalParams.json`, `CommandExecutionRequestApprovalResponse.json`, `JSONRPCResponse.json`: обязательные поля запроса, значение `accept`, транспортная оболочка ответа `{id, result}`.
-- `codex-rs/app-server/tests/suite/v2/config_requirements_exec_tests.rs`: интеграционный пример получения approval-запроса, проверки связи `itemId` с вызовом и отправки `CommandExecutionApprovalDecision::Accept`.
-- `codex-rs/app-server/tests/common/test_app_server.rs`: `send_response` оборачивает результат в `JSONRPCResponse { id, result }`. Это транспортная форма, отличная от внутренней формы `ServerResponse` с полями `method` и `response`.
-- `codex-rs/app-server-protocol/src/protocol/v2/thread.rs`: `ThreadReadParams`, `ThreadReadResponse`; для пагинированной истории исходник рекомендует `thread/turns/list` и `thread/items/list` вместо полной загрузки через `includeTurns`.
-- `codex-rs/app-server-protocol/src/protocol/thread_history_projection.rs`: преобразование сохранённых `ItemCompleted(TurnItem)` в `ThreadItem` для новой пагинированной истории.
-- `codex-rs/rollout/src/policy.rs`, `persisted_event_msg`: `ExecApprovalRequest` и `ApplyPatchApprovalRequest` входят в группу `Transient, non-durable events`, для которой возвращается `None`. Это прямое основание отделять живой запрос от сохранённой истории.
-- `codex-rs/app-server/src/outgoing_message.rs`, `notify_client_response`: ответ извлекает ожидающий callback, может передаваться в `track_server_response` и отправляется ожидающему обработчику. `codex-rs/analytics/src/client.rs` определяет отдельные факты `ServerRequest` и `ServerResponse`; наличие этого пути не означает наличие approval в API истории треда.
-- `codex-rs/protocol/src/models.rs`: отдельный модельный слой `ResponseItem`, варианты `FunctionCall` и `FunctionCallOutput`; JSON-аргументы вызова сериализуются строкой, результат — строкой или массивом content items.
+- `codex-rs/app-server-protocol/src/protocol/v2/item.rs`: `ThreadItem`, `camelCase` serialization, the `UserMessage`, `CommandExecution`, and `AgentMessage` variants, and the definitions of `CommandExecutionRequestApprovalParams` and `CommandExecutionRequestApprovalResponse`.
+- `codex-rs/app-server-protocol/schema/typescript/v2/ThreadItem.ts`, `UserInput.ts`, `CommandAction.ts`, `CommandExecutionStatus.ts`: checks of field names and shapes.
+- `codex-rs/app-server-protocol/schema/json/v2/ThreadReadResponse.json`: the `definitions.ThreadItem` schema. The example is checked as an array of these objects, not as a complete `ThreadReadResponse`. Omitted fields are permitted by the JSON Schema and Rust deserialization; this is an abbreviated representation, not a complete serializer output.
+- `codex-rs/app-server-protocol/src/protocol/common.rs`: the `item/commandExecution/requestApproval` RPC associates request parameters with a decision response.
+- `codex-rs/app-server-protocol/schema/json/CommandExecutionRequestApprovalParams.json`, `CommandExecutionRequestApprovalResponse.json`, `JSONRPCResponse.json`: required request fields, the `accept` value, and the response transport envelope `{id, result}`.
+- `codex-rs/app-server/tests/suite/v2/config_requirements_exec_tests.rs`: an integration example that receives an approval request, checks its `itemId` association, and sends `CommandExecutionApprovalDecision::Accept`.
+- `codex-rs/app-server/tests/common/test_app_server.rs`: `send_response` wraps the result in `JSONRPCResponse { id, result }`. This transport representation differs from the internal `ServerResponse` representation with `method` and `response` fields.
+- `codex-rs/app-server-protocol/src/protocol/v2/thread.rs`: `ThreadReadParams` and `ThreadReadResponse`. For paginated history, the source recommends `thread/turns/list` and `thread/items/list` instead of loading all turns with `includeTurns`.
+- `codex-rs/app-server-protocol/src/protocol/thread_history_projection.rs`: conversion of persisted `ItemCompleted(TurnItem)` events into `ThreadItem` records for the paginated history interface.
+- `codex-rs/rollout/src/policy.rs`, `persisted_event_msg`: `ExecApprovalRequest` and `ApplyPatchApprovalRequest` belong to the `Transient, non-durable events` group, which returns `None`. This directly supports distinguishing a live approval request from saved history.
+- `codex-rs/app-server/src/outgoing_message.rs`, `notify_client_response`: a response retrieves a pending callback, may be passed to `track_server_response`, and is sent to the waiting handler. `codex-rs/analytics/src/client.rs` defines separate `ServerRequest` and `ServerResponse` records. This path does not imply that approvals appear in the thread-history API.
+- `codex-rs/protocol/src/models.rs`: the separate model-facing `ResponseItem` layer, including `FunctionCall` and `FunctionCallOutput`. Function arguments are serialized as a JSON string; output is a string or an array of content items.
 
-## Границы вывода
+## Limits of the findings
 
-`commandExecution` — запись команды и результата, а не переносимое криптографическое свидетельство сама по себе. Даже достоверно записанный exit code и stdout не удостоверяют содержимое файла, которое процесс описал. Это основной вывод примера.
+A `commandExecution` item records a command and its result; it is not itself portable cryptographic evidence. Even an authentically recorded exit code and stdout do not authenticate the contents of a file described by the process. This is the example's central distinction.
 
-В проверенной версии approval-запрос исключён из долговременного rollout, отдельного `ThreadItem` с решением нет. Completed command item не устанавливает факт явного пользовательского одобрения. Это само по себе не дефект переноса: обычное продолжение не требует восстановления старого разрешения на запуск команды. Для аудита прежнего разрешения понадобится отдельный захват или доступная запись. Доступность отдельной аналитики не переносится на интерфейс истории; утверждение «никаких записей approval нигде не существует» не делается.
+In the checked version, approval requests are excluded from durable rollout storage, and there is no separate `ThreadItem` carrying the decision. A completed command item does not establish explicit user approval. That is not itself a transfer defect: ordinary continuation does not require restoring a past permission to run a command. Auditing that permission requires a separate capture or an accessible audit record. A separate analytics path does not make those records available through the history interface; this note does not claim that approval records exist nowhere.
 
-В части 04 `tool_result.v1` — предлагаемый формат свидетельства об инструментальном наблюдении, а не встроенный тип Codex. Он фиксирует вызов, входные байты, параметры и результат инспекции. В части 07 проверяются привязки результатов и применение текущей политики выполнения после возобновления. Перенос бизнес-согласований и событий аудита не входит в рассматриваемую задачу. Свойства произвольных других версий Codex этим просмотром не устанавливаются.
+The current article leaves tool-execution evidence, business approvals, and audit-event transfer outside its verification contract. The receiving environment applies its current execution policy to new actions after resumption. These source findings do not establish the behavior of arbitrary other Codex versions.
 
-Публикуемый текст не содержит локальных путей, внутренних ADR или сведений о частном продукте. Привязка к checkout оставлена здесь для повторной редакторской проверки.
+The published article contains no local paths, internal ADRs, or private-product details. The checkout reference is retained here for repeatable editorial review.

@@ -20,7 +20,7 @@ cloud service → saved thread → local agent → saved thread → cloud servic
 
 The local agent might use the same protocol. It might even call the same model provider. That still leaves several questions: which records match earlier API requests and responses, which were added on the device, and what survived export or compaction?
 
-This article works through that engineering problem. We will compare three ways to continue: summarize the returned history, restore a verified prefix and summarize the rest, or verify the history against records collected during model calls as the thread runs. A snapshot and a small server-side catalog give us the starting point. {==The structures below are proposed examples, not a report of a deployed system or benchmark.==}{>>лишняя оговорка. нам не нужно самозащищаться. это медиум а не научный журнал<<>>}
+This article works through that engineering problem. We will compare three ways to continue: summarize the returned history, restore a verified prefix and summarize the rest, or verify the history against records collected during model calls as the thread runs. A snapshot and a small server-side catalog give us the starting point. {==The structures below are proposed examples, not a report of a deployed system or benchmark.==}{>>Unnecessary caveat. We do not need defensive wording. This is Medium, not a scientific journal.<<>>}
 
 The operating condition matters: the receiving service may have neither the original transcript nor access to the files and external systems used during earlier work. We cannot assume a shared repository will let it reconstruct everything.
 
