@@ -1,60 +1,60 @@
 # Context admission — Medium v01
 
-Английская инженерная статья на базе academic draft v04. Отдельная редакция для Medium; исходный академический текст сохранён.
+An English engineering article adapted from academic draft v04. This is a separate Medium edition; the original academic draft remains in the content repository.
 
-- [Собранная статья](context_admission_medium_v01.md)
-- [Исходные части](parts/)
-- [Скрипт сборки](build.py)
-- [Проверка примера Codex по исходникам](notes/codex-thread-example.md)
+- [Assembled article](context_admission_medium_v01.md)
+- [Source sections](parts/)
+- [Build script](build.py)
+- [Codex example checked against source code](notes/codex-thread-example.md)
 
-## Части и ход аргумента
+## Sections and argument
 
-| Файл | Содержание |
+| File | Content |
 |---|---|
-| [00-opening.md](parts/00-opening.md) | Пользователь хранит тред и возвращает его сервису: что делает backend при Continue. |
-| [01-what-returning-a-thread-means.md](parts/01-what-returning-a-thread-means.md) | Пример Codex; целостность записей и граница статьи; import/admission; четыре варианта возврата; отдельная граница approvals и аудита. |
-| [02-choose-what-you-need-to-preserve.md](parts/02-choose-what-you-need-to-preserve.md) | Три способа продолжения: резюме всей истории; проверенный префикс и резюме хвоста; сверка всей истории с наблюдениями прокси. |
-| [03-snapshot-and-catalog.md](parts/03-snapshot-and-catalog.md) | Минимальная запись каталога с хешем (JSON Schema), сравнение на Python и переход к изменённой истории. |
-| [04-verified-prefix-and-summary.md](parts/04-verified-prefix-and-summary.md) | Проверенный префикс и компактизация хвоста: offset и хеш, JSON Schema, Python и продолжение с резюме. |
-| [05-verify-api-requests-and-responses.md](parts/05-verify-api-requests-and-responses.md) | Полные массивы input/output одного вызова; операторский индекс по API-account и response ID; whole-item hashing и сравнение без thread ID, глобальных позиций и дедупликации между вызовами. |
-| [06-portable-verification.md](parts/06-portable-verification.md) | Подписанное свидетельство об одном завершённом вызове: полный input/output, схема payload и DSSE; получение по response ID как расширение прокси. |
-| [07-metadata-loss-and-compaction.md](parts/07-metadata-loss-and-compaction.md) | Определения thread, transcript, model context и response output; почему равенство API-айтемов скрывало разницу объектов; когда достаточно последнего полного вызова; концептуальный путь сохранения и admission; переход к SD-JWT. |
-| [08-sd-jwt-component-evidence.md](parts/08-sd-jwt-component-evidence.md) | Claims конкретного вызова, политика раскрытия и готовый SD-JWT API: выпуск, хранение disclosures и солей у клиента, presentation, проверка и извлечение claims из runtime-транскрипта. |
-| [09-conclusion.md](parts/09-conclusion.md) | Заключение: выбор механизма, связь треда с вызовом остаётся у runtime, принимающий сервис проверяет покрытые значения. |
+| [00-opening.md](parts/00-opening.md) | A user stores a thread and returns it to the service: what the backend does when they select Continue. |
+| [01-what-returning-a-thread-means.md](parts/01-what-returning-a-thread-means.md) | Codex example; record integrity and scope; import versus admission; four return scenarios; the separate boundary for approvals and audit. |
+| [02-choose-what-you-need-to-preserve.md](parts/02-choose-what-you-need-to-preserve.md) | Three continuation options: summarize the whole submission, restore a verified prefix and summarize the tail, or compare returned content with proxy observations. |
+| [03-snapshot-and-catalog.md](parts/03-snapshot-and-catalog.md) | A minimal catalog entry with a hash, its JSON Schema, Python comparison, and the transition to changed histories. |
+| [04-verified-prefix-and-summary.md](parts/04-verified-prefix-and-summary.md) | A verified prefix and tail compaction: offset and hash, JSON Schema, Python, and continuation from a summary. |
+| [05-verify-api-requests-and-responses.md](parts/05-verify-api-requests-and-responses.md) | Complete input/output arrays for one call; an operator index scoped by API account and response ID; whole-item hashing and comparison without thread IDs, global positions, or cross-call deduplication. |
+| [06-portable-verification.md](parts/06-portable-verification.md) | Signed evidence for one completed call: full input/output, payload schema, and DSSE; retrieval by response ID as a proxy extension. |
+| [07-metadata-loss-and-compaction.md](parts/07-metadata-loss-and-compaction.md) | Definitions of thread, transcript, model context, and response output; why equal API items obscured the difference between these objects; when the last complete call is sufficient; the conceptual save/admission flow; transition to SD-JWT. |
+| [08-sd-jwt-component-evidence.md](parts/08-sd-jwt-component-evidence.md) | Claims for a specific call, disclosure policy, and an existing SD-JWT API: issuance, client-held disclosures and salts, presentation, verification, and claim extraction from a runtime transcript. |
+| [09-conclusion.md](parts/09-conclusion.md) | Choosing a mechanism: the runtime associates its thread with a call, and the receiving service verifies the covered values. |
 
-Матрица проверок сохранена вне публикационной сборки: [return-path-test-matrix.md](notes/return-path-test-matrix.md). Это рабочий чеклист, а не отчёт о выполнении всех перечисленных проверок.
+The [return-path test matrix](notes/return-path-test-matrix.md) is outside the publication build. It is a working checklist, not a report that every listed test has been executed.
 
-## Редакционные решения
+## Editorial decisions
 
-Граница предмета: сохранность возвращённой истории, покрытие дополнений, конвертация и compaction. Не рассматриваются provenance/data lineage содержимого, цитирование, связь выводов модели с источниками, оценка истинности ответов и WCA. Связь tool call/result сохраняется как часть структуры треда. Новые поля origin и карты допустимого использования не вводятся.
+The scope covers integrity of returned history, coverage of additions, format conversion, and compaction. It excludes content provenance/data lineage, citations, links between model conclusions and sources, answer truth, and WCA. Tool call/result links remain part of the thread structure. No new `origin` fields or permitted-use maps are introduced.
 
-Формат представления: структуры данных описываются JSON Schema, логика — понятным Python-кодом. Mermaid и ASCII-схемы в статье не используются.
+Data structures use JSON Schema; logic uses readable Python. The article uses neither Mermaid nor ASCII diagrams.
 
-Переписан ход объяснения, а не только сокращены абзацы. Нет abstract, каталога R1–R8, обязательной лестницы L0–L3 и отдельного обзора всех источников. Смысл прежних уровней сохранён в конкретных вариантах: supplied context, повторное использование проверок, проверяемые записи и контроль действия.
+The explanation was rewritten rather than merely shortened. There is no abstract, R1–R8 requirement catalog, mandatory L0–L3 ladder, or separate survey of every source. The earlier levels are expressed through concrete choices: supplied context, reuse of verification results, verifiable records, and action controls.
 
-Условия задачи сохранены: пользовательское хранение; ограниченные сведения у оператора; отсутствие гарантированного доступа к исходным артефактам; различие между сохранностью записи и тем, что запись устанавливает. Схема с каталогом представлена одним вариантом реализации. Переносятся сообщения и результаты инструментов со материалом для проверки сохранности и покрытия истории. Разрешения, approval-решения и аудит среды не являются переносимым состоянием треда в этой постановке. Аудиторские события собираются отдельно через телеметрию среды; хранение, защита, проверка и обмен аудитом остаются за рамками статьи. Для проверенной реализации Codex различаются OTel logs и traces: tool_decision использует log-only экспорт.
+The assumptions remain: user-held storage, limited operator records, no guaranteed access to original artifacts, and a distinction between preserving a record and establishing what it reports. The catalog is one implementation choice. Messages and tool results travel with evidence for history integrity and coverage. Permissions, approval decisions, and environment audit are not portable thread state in this problem. Audit events are collected separately through environment telemetry; their storage, protection, verification, and exchange are outside scope. In the checked Codex implementation, OTel logs and traces differ: `tool_decision` uses log-only export.
 
-Вместо повторяющегося примера про тесты и деплой использован явно обозначенный пример треда с командой создания CSV. Его payload, псевдокод и тесты иллюстративны. Ни внедрение, ни измеренные результаты не заявляются. В публикационном тексте нет внутренних ADR, issue ID, путей проекта или ссылок на частный код.
+The worked thread asks an agent to create a CSV file. Its payloads, pseudocode, and tests are illustrative; no deployment or measured results are claimed. The published article contains no internal ADRs, issue IDs, project paths, or private-code links.
 
-Публичные факты сопровождаются ссылками на первичные документы непосредственно в статье. Поведение Claude Desktop, transcript provenance и preserved thinking сверено с документацией 17 октября 2026. Формат переноса не выдается за доказательство политики безопасности продукта. DSSE используется для подписи прикладных проверочных данных, без заявления, что он уже реализует весь протокол возврата тредов.
+Public facts link directly to primary documents in the article. Claude Desktop behavior, transcript provenance, and preserved thinking were checked against documentation on 2026-10-17. A transfer format is not presented as proof of a product's security policy. DSSE signs application-defined verification data; it does not supply a complete thread-return protocol.
 
-Единица наблюдения прокси в §5–8 — один вызов инференса. Прокси удостоверяет полный полученный input и завершённый output, привязанные к API-account и response ID. Thread ID, глобальные позиции, predecessor chain и «первое появление» айтема из примеров удалены. Повторный контекст входит в свидетельство следующего вызова заново. Роль assistant во входе удостоверяется как клиентский контекст, не как доказанный прошлый выход модели.
+The proxy's observation unit in sections 5–8 is one inference call. It attests to the complete received input and finalized output, bound to the API account and response ID. It does not assign thread IDs, global positions, predecessor chains, or an item's first occurrence. Repeated context appears again in the next call's evidence. An assistant role in the input is authenticated as client-supplied context, not as proven earlier model output.
 
-§7 объясняет различие треда runtime и контекста вызова, а затем задаёт концептуальный алгоритм: runtime фиксирует ревизию, выбирает соответствующий завершённый вызов, сохраняет его свидетельство и отдаёт его вместе с транскриптом; принимающая сторона проверяет значения. Один полный вызов может покрывать необходимый контекст, но сам не доказывает, что он последний в треде. §8 реализует этот алгоритм через SD-JWT с готовой библиотекой. Template with a hole остаётся в §7 как работающая альтернатива с риском раскрытия метаданных.
+Section 7 distinguishes a runtime thread from a call's context, then describes the conceptual algorithm: the runtime freezes a revision, selects the corresponding completed call, saves its evidence, and returns that evidence with the transcript; the receiver compares the covered values. One complete call may cover the required context without proving that it is the latest call in the thread. Section 8 implements this flow using SD-JWT and an existing library. Section 7 also retains template-with-a-hole as a working alternative that can expose sensitive metadata.
 
-SD-JWT использует JWS, а не вложение в DSSE из §6. RFC 9901 определяет disclosures и их защиту, а выбор claims, API-account/response-ID binding и правила сравнения принадлежат прикладному профилю. Пример использует установленную `sd-jwt==0.10.4`; полный RFC conformance не заявляется, принятие unreferenced disclosures воспроизведено и обозначено. Текстовый адаптер сравнивает message claims и сохраняет request/response membership, но не проверяет tool records и их позиции в runtime-треде. Disclosures и соли сохраняет клиент; отложенная выдача полного пакета требует его временного хранения прокси.
+SD-JWT uses JWS directly, rather than nesting inside section 6's DSSE envelope. RFC 9901 defines disclosures and their protection; claim selection, API-account/response-ID binding, and comparison rules belong to the application profile. The example uses `sd-jwt==0.10.4`. Full RFC conformance is not claimed: acceptance of unreferenced disclosures is reproduced and documented. The text adapter compares message claims and retains request/response membership, but does not verify returned tool records or their positions in the runtime thread. The client holds disclosures and salts; delayed retrieval of the complete package requires transient proxy retention.
 
-Проверка опубликованного кода: [check_sdjwt_example.py](notes/check_sdjwt_example.py). Скрипт извлекает код и JSON непосредственно из частей, выполняет выпуск, presentation, проверку и сопоставление, проверяет отрицательные случаи и прежний DSSE-путь. Детали и команды: [SD-JWT example](notes/sd-jwt-example.md).
+The [published-code checker](notes/check_sdjwt_example.py) extracts Python and JSON directly from the sections, executes issuance, presentation, verification, and matching, and checks rejection cases and the DSSE path. See the [SD-JWT example note](notes/sd-jwt-example.md) for details and commands.
 
-## Сборка
+## Build
 
-Из корня репозитория:
+From the repository root:
 
 ```sh
 python3 article/build.py
 python3 article/build.py --check
 ```
 
-Редактировать следует файлы `parts/`, затем запускать сборку. Скрипт соединяет десять частей в фиксированном порядке и проверяет точное совпадение при `--check`. Статья заканчивается заключением §9; approvals и аудит обозначены в §1, матрица проверок остаётся в технических заметках.
+Edit `article/parts/`, then run the build. The script joins ten sections in a fixed order; `--check` verifies that the assembled file matches them exactly. The article ends with section 9's conclusion. Section 1 defines the approval/audit boundary, while the test matrix remains in the technical notes.
 
-Первичная редакция: **5 025 слов против 10 950 в academic v04**, сокращение **54,1%**. Метод одинаков для обоих документов: разделение Markdown по пробельным символам, без YAML и раздела References; заголовки, таблицы и код входят в подсчёт. Это историческое сравнение первой редакции; текущая сборка выводит число слов статьи без зависимости от академического репозитория.
+The first edition had **5,025 words versus 10,950 in academic v04**, a **54.1% reduction**. Both counts split the Markdown body on whitespace, excluding YAML and References but including headings, tables, and code. This is a historical comparison for the first edition; the current build reports the article's word count without depending on the academic repository.
