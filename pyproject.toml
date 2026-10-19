@@ -1,0 +1,20 @@
+[project]
+name = "thread-admission"
+version = "0.1.0"
+description = "Engineering examples for admission of user-held agent threads"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+dependencies = [
+    "cryptography==50.0.2",
+    "jsonschema==4.26.0",
+    "jwcrypto==1.6.1",
+    "rfc8785==0.1.4",
+    "sd-jwt==0.10.4",
+]
+
+[project.urls]
+Repository = "https://github.com/olegische/thread-admission"
+
+[tool.uv]
+package = false

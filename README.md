@@ -18,8 +18,8 @@ transcript with claims captured at the model API boundary.
 Edit the section files, then rebuild:
 
 ```sh
-python3 article/build.py
-python3 article/build.py --check
+uv run --locked python article/build.py
+uv run --locked python article/build.py --check
 ```
 
 The assembled article and its source sections were copied without text changes
@@ -28,18 +28,19 @@ content repository. This project does not depend on that repository at runtime.
 
 ## Run the code
 
-Use Python 3.12. These commands work in fish as well as POSIX shells; environment
-activation is unnecessary.
+Use [uv](https://docs.astral.sh/uv/). The project pins Python 3.12 in
+`.python-version`. These commands work in fish as well as POSIX shells;
+environment activation is unnecessary.
 
 ```sh
-python3.12 -m venv .venv
-.venv/bin/python -m pip install -r requirements.lock
-.venv/bin/python examples/run.py
-.venv/bin/python scripts/check.py
+uv sync --locked
+uv run --locked python examples/run.py
+uv run --locked python scripts/check.py
 ```
 
-`requirements.txt` pins direct dependencies; `requirements.lock` records the full
-environment used for verification. The examples use local fixtures and generate
+`pyproject.toml` declares the project and its direct dependencies; `uv.lock`
+locks the resolved dependency graph. `uv sync --locked` creates `.venv` from that
+lockfile without changing it. The examples use local fixtures and generate
 ephemeral demo keys in memory. They make no model API calls and save no keys or
 disclosure packages to disk.
 

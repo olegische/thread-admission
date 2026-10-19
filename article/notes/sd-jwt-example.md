@@ -15,9 +15,8 @@ The second call in the worked example receives `[user, call, result]` and emits 
 Executed against Python 3.12, `sd-jwt==0.10.4`, `jwcrypto==1.6.1`, `jsonschema==4.26.0`, and `rfc8785==0.1.4`. The JCS dependency supports the whole-item index and DSSE paths; the SD-JWT library performs disclosure encoding and hashing.
 
 ```sh
-python3 -m venv /tmp/context-admission-sdjwt-venv
-/tmp/context-admission-sdjwt-venv/bin/python -m pip install 'sd-jwt==0.10.4' 'jwcrypto==1.6.1' 'jsonschema==4.26.0' 'rfc8785==0.1.4'
-/tmp/context-admission-sdjwt-venv/bin/python article/notes/check_sdjwt_example.py
+uv sync --locked
+uv run --locked python article/notes/check_sdjwt_example.py
 ```
 
 The script extracts JSON fixtures and exact executable Python blocks from the current Markdown. The App Server transcript comes from section 1, the API call/result from section 5, the API answer from section 7 and the SD-JWT schema from section 8. No crypto or serialization mocking is used.

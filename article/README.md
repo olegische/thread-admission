@@ -51,8 +51,8 @@ The [published-code checker](notes/check_sdjwt_example.py) extracts Python and J
 From the repository root:
 
 ```sh
-python3 article/build.py
-python3 article/build.py --check
+uv run --locked python article/build.py
+uv run --locked python article/build.py --check
 ```
 
 Edit `article/parts/`, then run the build. The script joins ten sections in a fixed order; `--check` verifies that the assembled file matches them exactly. The article ends with section 9's conclusion. Section 1 defines the approval/audit boundary, while the test matrix remains in the technical notes.
