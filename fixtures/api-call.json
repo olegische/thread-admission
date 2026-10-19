@@ -1,0 +1,42 @@
+{
+  "sub": "api-account-1",
+  "response_id": "resp-2",
+  "input": [
+    {
+      "type": "message",
+      "role": "user",
+      "content": [
+        {
+          "type": "input_text",
+          "text": "Run export.py to create the customer export."
+        }
+      ]
+    },
+    {
+      "type": "function_call",
+      "call_id": "call-1",
+      "name": "exec_command",
+      "arguments": "{\"cmd\":\"python export.py\",\"workdir\":\"/workspace\"}"
+    },
+    {
+      "type": "function_call_output",
+      "call_id": "call-1",
+      "output": "Chunk ID: abc123\nWall time: 0.1000 seconds\nProcess exited with code 0\nOutput:\nWrote export.csv (128 rows).\n"
+    }
+  ],
+  "output": [
+    {
+      "type": "message",
+      "id": "msg-api-1",
+      "role": "assistant",
+      "status": "completed",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "Created export.csv with 128 rows.",
+          "annotations": []
+        }
+      ]
+    }
+  ]
+}

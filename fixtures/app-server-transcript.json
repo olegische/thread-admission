@@ -1,0 +1,33 @@
+[
+  {
+    "type": "userMessage",
+    "id": "msg-1",
+    "content": [
+      {
+        "type": "text",
+        "text": "Run export.py to create the customer export."
+      }
+    ]
+  },
+  {
+    "type": "commandExecution",
+    "id": "exec-1",
+    "command": "python export.py",
+    "cwd": "/workspace",
+    "source": "agent",
+    "status": "completed",
+    "commandActions": [
+      {
+        "type": "unknown",
+        "command": "python export.py"
+      }
+    ],
+    "aggregatedOutput": "Wrote export.csv (128 rows).\n",
+    "exitCode": 0
+  },
+  {
+    "type": "agentMessage",
+    "id": "msg-2",
+    "text": "Created export.csv with 128 rows."
+  }
+]

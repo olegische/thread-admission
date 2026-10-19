@@ -1,0 +1,5 @@
+cryptography==50.0.2
+jsonschema==4.26.0
+jwcrypto==1.6.1
+rfc8785==0.1.4
+sd-jwt==0.10.4
