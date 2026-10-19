@@ -79,5 +79,11 @@ RFC conformance or production readiness. See the [verification note](article/not
 
 ## Local history
 
-This is a separate local Git repository. Commit article and code changes together
-so the matching implementation is preserved with each revision.
+The article and code share one Git history. Commit their changes together so the
+matching implementation is preserved with each revision.
+
+GitHub: [olegische/thread-admission](https://github.com/olegische/thread-admission).
+
+## License
+
+[Apache License 2.0](LICENSE).
