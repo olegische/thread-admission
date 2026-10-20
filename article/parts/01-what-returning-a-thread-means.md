@@ -34,7 +34,7 @@ For a concrete example, Codex App Server represents a turn's history as typed `T
 ]
 ```
 
-In the original session these records arrived through different interfaces. After export, they all arrive from one uploaded file. Someone editing it can change `exitCode`, replace the assistant's answer, or insert another command result. Valid `ThreadItem` syntax does not tell the receiver whether this is the history it saved.
+In the original session these records arrived through different interfaces. When the application sends the saved thread back, all of these records arrive from client-controlled storage. Someone editing that history can change `exitCode`, replace the assistant's answer, or insert another command result. Valid `ThreadItem` syntax does not tell the receiver whether this is the history it saved.
 
 The scope here is the history itself: its records, order, roles, and call/result links. We do not trace the assistant's claims back to documents, citations, or transformations of source data. Checking that a saved answer is unchanged does not check whether the answer is correct.
 
@@ -58,7 +58,7 @@ Four return paths exercise different parts of this contract:
 
 None requires assuming the user is malicious. A runtime can regenerate IDs, omit a field it does not understand, or replace a long tool result with a summary. Treating these as supported transformations means specifying their effects, rather than deciding that similar-looking text is probably the same history.
 
-The backend's question is therefore quite concrete: **which parts of this upload can be restored as prior history, and which must enter as new input?** A single `trusted: true` flag on the entire conversation cannot answer it.
+The backend's question is therefore quite concrete: **which parts of the returned history can be restored as prior history, and which must enter as new input?** A single `trusted: true` flag on the entire conversation cannot answer it.
 
 ### Approvals and audit belong to the execution environment
 

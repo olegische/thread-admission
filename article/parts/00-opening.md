@@ -4,11 +4,11 @@
 
 Suppose you are building a cloud service for an AI assistant. You want users to keep their conversation history in storage they control. Your service processes a thread during a session, then returns it without keeping a complete transcript between sessions.
 
-The user comes back tomorrow, uploads the saved thread, and clicks **Continue**.
+The next day, the user selects the thread from the conversation list and sends another message. The application sends the saved history and the new message to your service.
 
 What should your backend do with it?
 
-The obvious implementation parses the messages and sends them to the model. It restores `user`, `assistant`, and `tool` records, reconstructs call IDs, and resumes the loop. That gets the conversation moving. It also lets the uploaded file tell the service who said what, which tools ran, and what results they returned.
+The obvious implementation parses the messages and sends them to the model. It restores `user`, `assistant`, and `tool` records, reconstructs call IDs, and resumes the loop. That gets the conversation moving. It also lets the client-supplied history tell the service who said what, which tools ran, and what results they returned.
 
 All of those fields are now supplied by the client. Even if the user changed nothing, the service needs a way to distinguish its own earlier records from a convincing replacement.
 

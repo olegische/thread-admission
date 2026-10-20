@@ -4,11 +4,11 @@
 
 Suppose you are building a cloud service for an AI assistant. You want users to keep their conversation history in storage they control. Your service processes a thread during a session, then returns it without keeping a complete transcript between sessions.
 
-The user comes back tomorrow, uploads the saved thread, and clicks **Continue**.
+The next day, the user selects the thread from the conversation list and sends another message. The application sends the saved history and the new message to your service.
 
 What should your backend do with it?
 
-The obvious implementation parses the messages and sends them to the model. It restores `user`, `assistant`, and `tool` records, reconstructs call IDs, and resumes the loop. That gets the conversation moving. It also lets the uploaded file tell the service who said what, which tools ran, and what results they returned.
+The obvious implementation parses the messages and sends them to the model. It restores `user`, `assistant`, and `tool` records, reconstructs call IDs, and resumes the loop. That gets the conversation moving. It also lets the client-supplied history tell the service who said what, which tools ran, and what results they returned.
 
 All of those fields are now supplied by the client. Even if the user changed nothing, the service needs a way to distinguish its own earlier records from a convincing replacement.
 
@@ -60,7 +60,7 @@ For a concrete example, Codex App Server represents a turn's history as typed `T
 ]
 ```
 
-In the original session these records arrived through different interfaces. After export, they all arrive from one uploaded file. Someone editing it can change `exitCode`, replace the assistant's answer, or insert another command result. Valid `ThreadItem` syntax does not tell the receiver whether this is the history it saved.
+In the original session these records arrived through different interfaces. When the application sends the saved thread back, all of these records arrive from client-controlled storage. Someone editing that history can change `exitCode`, replace the assistant's answer, or insert another command result. Valid `ThreadItem` syntax does not tell the receiver whether this is the history it saved.
 
 The scope here is the history itself: its records, order, roles, and call/result links. We do not trace the assistant's claims back to documents, citations, or transformations of source data. Checking that a saved answer is unchanged does not check whether the answer is correct.
 
@@ -84,7 +84,7 @@ Four return paths exercise different parts of this contract:
 
 None requires assuming the user is malicious. A runtime can regenerate IDs, omit a field it does not understand, or replace a long tool result with a summary. Treating these as supported transformations means specifying their effects, rather than deciding that similar-looking text is probably the same history.
 
-The backend's question is therefore quite concrete: **which parts of this upload can be restored as prior history, and which must enter as new input?** A single `trusted: true` flag on the entire conversation cannot answer it.
+The backend's question is therefore quite concrete: **which parts of the returned history can be restored as prior history, and which must enter as new input?** A single `trusted: true` flag on the entire conversation cannot answer it.
 
 ### Approvals and audit belong to the execution environment
 
@@ -781,4 +781,4 @@ An unchanged snapshot needs a protected reference digest. A verified prefix can 
 
 When runtime formats differ, selected claims provide a more useful verification target than complete API objects. SD-JWT supplies a standard way to sign commitments and disclose their values. The application chooses the claims, defines their representation, and extracts them at each interface. Disclosures and their salts can remain with the user's data.
 
-The runtime manages the thread and selects the corresponding call evidence. The receiver checks the submitted content against that evidence before admission. **Continue** can then restore the records or claims the comparison covers and handle the remainder explicitly as supplied context or reject it. The receiving environment still controls every new action.
+The runtime manages the thread and selects the corresponding call evidence. The receiver checks the submitted content against that evidence before admission. When the user sends the next message in that thread, the service can restore the records or claims the comparison covers and handle the remainder explicitly as supplied context or reject it. The receiving environment still controls every new action.

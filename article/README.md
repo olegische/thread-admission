@@ -11,7 +11,7 @@ An English engineering article about accepting a user-held agent thread back int
 
 | File | Content |
 |---|---|
-| [00-opening.md](parts/00-opening.md) | A user stores a thread and returns it to the service: what the backend does when they select Continue. |
+| [00-opening.md](parts/00-opening.md) | The application returns a saved thread to the service when the user selects it from the conversation list and sends another message. |
 | [01-what-returning-a-thread-means.md](parts/01-what-returning-a-thread-means.md) | Codex example; record integrity and scope; import versus admission; four return scenarios; the separate boundary for approvals and audit. |
 | [02-choose-what-you-need-to-preserve.md](parts/02-choose-what-you-need-to-preserve.md) | Three continuation options: summarize the whole submission, restore a verified prefix and summarize the tail, or compare returned content with proxy observations. |
 | [03-snapshot-and-catalog.md](parts/03-snapshot-and-catalog.md) | A minimal catalog entry with a hash, its JSON Schema, Python comparison, and the transition to changed histories. |
