@@ -39,6 +39,8 @@ def main():
         text = (ROOT / "parts" / name).read_text(encoding="utf-8").strip()
         if not text:
             raise SystemExit(f"Empty part: {name}")
+        # Image paths in parts are relative to article/parts/.
+        text = text.replace("](../images/", "](images/")
         chunks.append(text)
     assembled = "\n\n".join(chunks) + "\n"
 

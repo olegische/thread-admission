@@ -14,9 +14,7 @@ All of those fields are now supplied by the client. Even if the user changed not
 
 The problem becomes more visible when the user continues locally before returning:
 
-```text
-cloud service → saved thread → local agent → saved thread → cloud service
-```
+![A thread moves from the cloud service to a local agent and back.](images/00-opening-01.jpg)
 
 The local agent might use the same protocol. It might even call the same model provider. That still leaves several questions: which records match earlier API requests and responses, which were added on the device, and what survived export or compaction?
 
