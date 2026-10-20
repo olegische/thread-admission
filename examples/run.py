@@ -48,8 +48,13 @@ def main():
     print("PASS: snapshot recognition; changed bytes and wrong owner rejected")
 
     # Prefix: keep original records, return the unverified tail separately.
-    checkpoint = make_checkpoint(returned)
-    validate(checkpoint, load_json("schemas/checkpoint.schema.json"))
+    prefix_entry = {
+        "owner_id": key[0], "thread_id": key[1], "revision": key[2],
+        "checkpoint": make_checkpoint(returned),
+    }
+    validate(prefix_entry, load_json("schemas/checkpoint.schema.json"))
+    prefix_catalog = {key: prefix_entry}
+    checkpoint = prefix_catalog[key]["checkpoint"]
     extra = {"type": "userMessage", "id": "msg-3", "content": [
         {"type": "text", "text": "Continue on the laptop."}]}
     prefix, tail = split_verified_prefix([*returned, extra], checkpoint)

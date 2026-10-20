@@ -1,9 +1,18 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": ["offset", "prefix_sha256"],
+  "required": ["owner_id", "thread_id", "revision", "checkpoint"],
   "properties": {
-    "offset": { "type": "integer", "minimum": 0 },
-    "prefix_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+    "owner_id": { "type": "string" },
+    "thread_id": { "type": "string" },
+    "revision": { "type": "string" },
+    "checkpoint": {
+      "type": "object",
+      "required": ["offset", "prefix_sha256"],
+      "properties": {
+        "offset": { "type": "integer", "minimum": 0 },
+        "prefix_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    }
   }
 }

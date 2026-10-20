@@ -2,7 +2,7 @@
 
 When saving a thread, the service computes its hash and keeps that hash under the owner, thread, and revision identifiers. The user keeps the complete snapshot. On return, the service hashes the uploaded bytes and compares the result with its saved value.
 
-The catalog entry can be this small:
+The following catalog entry is sufficient to recognize the saved snapshot:
 
 ```json
 {

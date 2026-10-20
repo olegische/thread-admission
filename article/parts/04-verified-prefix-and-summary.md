@@ -4,19 +4,30 @@ Suppose the service exported 100 records and the user returns one array containi
 
 At export, save a checkpoint containing the record offset and the hash of `records[:offset]`. The offset is measured in records, not bytes: `offset = 100` leaves the tail at `records[100:]`.
 
-Store the checkpoint in the service catalog under the authenticated owner, thread, and exported revision. Both the offset and hash come from that saved entry, not from replacement values supplied by the uploader.
+For this approach, the catalog entry keeps the owner, thread, and revision identifiers from the previous section and replaces the whole-file `sha256` with a `checkpoint` object containing `offset` and `prefix_sha256`. The full entry is:
 
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": ["offset", "prefix_sha256"],
+  "required": ["owner_id", "thread_id", "revision", "checkpoint"],
   "properties": {
-    "offset": { "type": "integer", "minimum": 0 },
-    "prefix_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+    "owner_id": { "type": "string" },
+    "thread_id": { "type": "string" },
+    "revision": { "type": "string" },
+    "checkpoint": {
+      "type": "object",
+      "required": ["offset", "prefix_sha256"],
+      "properties": {
+        "offset": { "type": "integer", "minimum": 0 },
+        "prefix_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    }
   }
 }
 ```
+
+At export, store this entry under `(owner_id, thread_id, revision)`. On return, authenticate the owner, authorize access to the thread, and load the entry for the revision being checked. The saved `checkpoint.offset` determines where to split the returned array; `checkpoint.prefix_sha256` is the expected hash. The client can return one array containing both the original records and the additions.
 
 The checkpoint hashes the record array, rather than the complete exported file. This example uses JCS at both export and return so that JSON whitespace and object-key order do not affect the comparison. Record values and array order remain significant. The Python package `rfc8785` supplies the canonical bytes. [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785.html), [Python implementation](https://github.com/trailofbits/rfc8785.py)
 
@@ -49,14 +60,29 @@ def split_verified_prefix(records, checkpoint):
     return prefix, tail  # Verification has not admitted the tail.
 ```
 
+The catalog entry wraps the checkpoint with its identifiers:
+
+```python
+# At export, records is the saved revision's array.
+entry = {
+    "owner_id": owner_id,
+    "thread_id": thread_id,
+    "revision": revision,
+    "checkpoint": make_checkpoint(records),
+}
+catalog[(owner_id, thread_id, revision)] = entry
+
+# On return, after authorization and selection of the saved revision.
+entry = catalog[(owner_id, thread_id, revision)]
+prefix, tail = split_verified_prefix(returned_records, entry["checkpoint"])
+```
+
 The code assumes parsed, validated runtime records. Rewritten IDs or compaction within the prefix invalidate the match. If it fails, ask for the original snapshot or offer continuation from a summary of the whole submission.
 
 ### Keep the first 100 records; summarize the next 20
 
-Once the prefix matches, restore those 100 records unchanged. Compact only the 20 records from the offset onward and append their summary as a new user-context message. The summary describes the local continuation; it does not recreate its assistant turns or tool results as recorded history.
+Once the prefix matches, restore those 100 records unchanged and summarize the next 20 as a new user-context message. Save checkpoints after pending tool calls have completed, so the boundary does not separate calls from their results.
 
-Save the checkpoint after pending tool calls have completed, so that summarizing the tail does not separate calls from their results.
+This raises a source-of-truth question. The service can save the prefix and summary as a new revision, but that revision no longer contains the detailed local continuation. If it replaces the user's local history, those records are lost. Keeping the originals separately preserves them, but the summary is only a derived context, not their verified replacement.
 
-Compaction reduces detail, not the need for normal input controls. The resulting summary remains supplied context. After accepting it, the service can save the restored prefix and the new summary message as a new revision. A later hash match will recognize that revision, including the summary as a user-context message.
-
-This can be the complete design: the saved prefix is restored, and the local continuation enters as a summary. The next approach changes how verification data is collected: instead of recognizing only an exported revision, the service records what it observes during model calls and uses those records to verify the whole history.
+In a user-held history model, the detailed record remains with the user, while the service still needs to check what it receives. We therefore turn to an approach that compares returned records with evidence captured during model calls, allowing covered content to be retained without replacing it with a summary.
