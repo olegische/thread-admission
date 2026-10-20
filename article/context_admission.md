@@ -66,7 +66,7 @@ The scope here is the history itself: its records, order, roles, and call/result
 
 Use two steps in the backend:
 
-- **Import** parses and stores the submitted data. Historical calls remain records. Credentials and permissions are not restored from the file.
+- **Import** parses and stores the submitted history. Records of executed commands remain records; permissions for new actions are determined by the current execution environment.
 - **Admission** decides whether to resume from the returned history, accept only a verified portion, use the submission as new context, or reject it.
 
 Loading the `commandExecution` item above never reruns `python export.py`. If the agent needs to run it again, the receiving environment applies its current execution policy. Its permissions, approval decisions, and audit log belong to that environment.
