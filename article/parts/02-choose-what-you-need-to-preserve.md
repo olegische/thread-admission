@@ -28,5 +28,8 @@ An unchanged snapshot is the easy baseline: compare it with a hash saved by the 
 | Verify a prefix, summarize the tail | The saved records before the saved offset, followed by a summary of the additions | A protected offset and prefix hash, plus compaction |
 | Compare returned content with model-call evidence | Records or claims whose content and supported relationships match an observed call | Verification data for the call's ordered input and output |
 
+For the third approach, one completed model call may be enough if its full input and output cover the context needed to continue. Material outside that call needs separate evidence or an explicit decision about whether to use it as new context.
+
+The operator can retain the call's verification data in a server-side index or give the client a portable signed statement to return with the thread. The following sections work through both options.
 
 Historical TLS session tickets offer a precedent for the baseline: clients hold server-protected state for later resumption. A readable thread needs its own format and rules, but client custody does not itself prevent integrity protection. [RFC 5077](https://www.rfc-editor.org/rfc/rfc5077.html)
