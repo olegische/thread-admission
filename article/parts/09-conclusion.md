@@ -1,9 +1,10 @@
 ## Conclusion
 
-User-held threads can support continuation without a server-side copy of the conversation. What the receiving service can restore depends on the evidence captured during the original work and on what survives the transfer.
+Keeping history with the user allows work to continue without a server-side copy of the conversation. When the thread returns, however, the service must determine which records match the earlier work and which were added or changed outside it.
 
-An unchanged snapshot needs a protected reference digest. A verified prefix can be restored while later work enters as a summary. A proxy can also record individual calls in an index or issue signed evidence that travels with the user. One call can cover the retained context when its full input and output contain the necessary content.
+- **For an unchanged history, a saved hash is sufficient.** The receiving service compares the returned history against it. If new records were added after saving, the earlier portion can be verified and the additions handled separately.
+- **Replacing local work with a summary allows the conversation to continue but loses detail.** If only the summary is retained, the original messages, tool calls, and results are no longer part of that history.
+- **Evidence of content can be collected as the agent exchanges requests and responses with the model.** The agent application constructs model requests and receives the responses. An intermediary service on that path, the inference proxy, records each call's input and output and issues signed evidence. The application saves that evidence alongside the history in the user's storage.
+- **We use SD-JWT to compare the history with that evidence.** The inference proxy signs selected values from model requests and responses. When the history returns, the receiving service verifies the signature and compares those values with the thread's records. The example checks message text and roles this way, even when the application stores them in a different format.
 
-When runtime formats differ, selected claims provide a more useful verification target than complete API objects. SD-JWT supplies a standard way to sign commitments and disclose their values. The application chooses the claims, defines their representation, and extracts them at each interface. Disclosures and their salts can remain with the user's data.
-
-The runtime manages the thread and selects the corresponding call evidence. The receiver checks the submitted content against that evidence before admission. When the user sends the next message in that thread, the service can restore the records or claims the comparison covers and handle the remainder explicitly as supplied context or reject it. The receiving environment still controls every new action.
+The history thus stays with the user, while the service gains a basis for restoring it. The service continues with verified content and separately decides how to handle additions for which no evidence is available.
