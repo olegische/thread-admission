@@ -40,24 +40,14 @@ The runtime can export its answer as:
 }
 ```
 
-Both contain the same answer text. Neither the common text nor the different IDs establishes which runtime thread contains it. The runtime knows that association; the receiver must verify the content it proposes to restore.
-
-### One full call can cover the retained context
-
-In the export-script example, the first call receives the user message and returns a function call. The second receives the user message, function call, and tool result, then returns the final answer. Evidence for the second call covers all four records in that example, across its input and output.
-
-When a completed call's full input includes everything needed for continuation, its evidence can be sufficient. The response output must be covered too: the final answer is not already present in its own request.
-
-This establishes what the client presented and what the proxy delivered for that call. An assistant item found only in the input remains authenticated as supplied context. Proving that it was generated in an earlier call requires evidence of that earlier output.
-
-The same limit applies to compaction: a call containing a summary covers that summary, not the old records it replaced. Records added after the selected call are also outside its coverage. The worked path assumes full input at the proxy; a delta-only transport needs a separate way to establish the resolved context.
+The answer text survives export, but its surrounding object changes. A digest of the original API item cannot be checked directly against the exported `agentMessage`. The receiver needs a way to compare the retained content across these representations.
 
 ### Let the runtime connect the export to the call
 
 The admission question is now concrete: **can evidence of an inference call support accepting a thread supplied by an external runtime?** A possible integration works as follows:
 
 1. The proxy prepares evidence from the complete input and finalized output as each call completes. It identifies the call by the response ID exposed to the agent and scopes access to the authenticated API account.
-2. When saving, the runtime fixes the exported revision and selects the completed call that corresponds to it. This association lives in the runtime, not in the proxy.
+2. When saving, the runtime fixes the exported revision and selects a completed call covering the content to restore. A call containing a summary covers that summary; records added afterward need separate evidence. The association between the exported revision and the selected call lives in the runtime, not in the proxy.
 3. The runtime obtains that call's evidence and stores it with the transcript. A proposed retrieval interface can use the response ID; it is an extension to our proxy, not a standard Responses API evidence endpoint.
 4. On return, the receiving service verifies the evidence and compares its covered values with values extracted from the submitted transcript.
 5. The service restores only what that comparison supports. Uncovered records require an explicit choice such as admission as supplied context or rejection.

@@ -43,7 +43,7 @@ for part in PARTS.glob('*.md'):
         read_json(value)
 
 returned = read_json(blocks('01-what-returning-a-thread-means.md', 'json')[0])
-call, result = map(read_json, blocks('05-verify-api-requests-and-responses.md', 'json'))
+call, result = read_json((ROOT.parent / 'fixtures/api-call.json').read_text())['input'][1:]
 answer = next(read_json(value) for value in blocks('07-metadata-loss-and-compaction.md', 'json')
               if read_json(value).get('type') == 'message')
 schema = read_json(blocks('08-sd-jwt-component-evidence.md', 'json')[0])

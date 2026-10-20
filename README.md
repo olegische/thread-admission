@@ -10,6 +10,7 @@ transcript with claims captured at the model API boundary.
 
 ## Article
 
+- [Published on Medium](https://medium.com/@romoleg/agent-history-lives-on-the-users-device-how-can-an-ai-service-verify-it-f3344cdd4cbd)
 - [Assembled English article](article/context_admission.md)
 - [Ten source sections](article/parts/)
 - [Editorial notes and section guide](article/README.md)

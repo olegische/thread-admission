@@ -73,12 +73,10 @@ Loading the `commandExecution` item above never reruns `python export.py`. If th
 
 Four return paths exercise different parts of this contract:
 
-| What came back | What the receiver needs to establish |
-|---|---|
-| The original saved revision | Its records match the saved revision. |
-| That revision plus local work | Where the verified history ends and whether the additions have separate verification coverage. |
-| A conversion to another format | Which content and relationships the conversion preserved. |
-| A summary | Whether to accept the new summary as context, and which original records remain available. |
+- **The original saved revision.** The receiver checks that its records match the saved revision.
+- **That revision plus local work.** The receiver identifies where the verified history ends and whether the additions have separate verification coverage.
+- **A conversion to another format.** The receiver establishes which content and relationships the conversion preserved.
+- **A summary.** The receiver decides whether to accept it as new context and establishes which original records remain available.
 
 None requires assuming the user is malicious. A runtime can regenerate IDs, omit a field it does not understand, or replace a long tool result with a summary. Treating these as supported transformations means specifying their effects, rather than deciding that similar-looking text is probably the same history.
 
@@ -100,25 +98,21 @@ This has a real product analogue: Claude Code Desktop documents moving a local s
 
 Whether this is enough for your service depends on the work being resumed:
 
-| What is available after transfer? | A practical continuation strategy |
-|---|---|
-| Exact artifacts, with cheap and repeatable checks | Load the artifacts, treat the summary as guidance, and check again. |
-| Some original records are needed to continue | Retain and verify those records alongside the summary. |
-| Only the thread, without access to the original artifacts | Preserve the history needed for continuation and verify what came back. |
+- **Exact artifacts are available, with cheap and repeatable checks.** Load the artifacts, treat the summary as guidance, and check again.
+- **Some original records are needed to continue.** Retain and verify those records alongside the summary.
+- **Only the thread is available, without access to the original artifacts.** Preserve the history needed for continuation and verify what came back.
 
-Git helps with the first row. It can identify the code being examined. It does not reconstruct a tool response from a database that has since changed or a local file that was never committed. Running a query today establishes today's result. If the earlier response is needed as context, keep that record and its call ID through the transfer.
+Git helps when the original artifacts are available. It can identify the code being examined. It does not reconstruct a tool response from a database that has since changed or a local file that was never committed. Running a query today establishes today's result. If the earlier response is needed as context, keep that record and its call ID through the transfer.
 
-Our target architecture includes the third row. The service may lack access to the user's original documents, local files, or connector accounts. In that case, losing a particular record can mean losing the ability to continue a task as intended. Asking the model to reconstruct it supplies new text, not the missing record.
+Our target architecture includes continuation from the thread alone. The service may lack access to the user's original documents, local files, or connector accounts. In that case, losing a particular record can mean losing the ability to continue a task as intended. Asking the model to reconstruct it supplies new text, not the missing record.
 
 ### Three ways to continue
 
 An unchanged snapshot is the easy baseline: compare it with a hash saved by the service and restore the matching revision. There are three useful continuation strategies:
 
-| Approach | What enters the next session | What you need |
-|---|---|---|
-| Summarize the history | A summary supplied as new user context | A compaction step and normal input controls |
-| Verify a prefix, summarize the tail | The saved records before the saved offset, followed by a summary of the additions | A protected offset and prefix hash, plus compaction |
-| Compare returned content with model-call evidence | Records or claims whose content and supported relationships match an observed call | Verification data for the call's ordered input and output |
+1. **Summarize the history.** The next session receives a summary as new user context. This requires a compaction step and normal input controls.
+2. **Verify a prefix, summarize the tail.** The next session receives the saved records before the saved offset, followed by a summary of the additions. This requires a protected offset and prefix hash, plus compaction.
+3. **Compare returned content with model-call evidence.** The next session receives records or claims whose content and supported relationships match an observed call. This requires verification data for the call's ordered input and output.
 
 For the third approach, one completed model call may be enough if its full input and output cover the context needed to continue. Material outside that call needs separate evidence or an explicit decision about whether to use it as new context.
 
@@ -272,39 +266,16 @@ If output-to-input conversion removes output-only fields, apply that agreed conv
 
 There is no deduplication across calls. When the agent sends earlier items again, those items belong to the new request's input too. Their positions are local to that array. This matches client-managed conversation state, where earlier input and output are sent with the next request. [Conversation state](https://developers.openai.com/api/docs/guides/conversation-state)
 
-### Follow the same two model calls
+### One call can cover the retained context
 
-Both requests use `stream: true`, send the accumulated context in `input`, and use neither `previous_response_id` nor a provider-managed conversation.
+When the runtime sends the accumulated history with each request, a later call can cover earlier exchanges:
 
-The first input contains the user's request to run `export.py`. The response introduces a function call, streams its arguments, and supplies the finalized item at `response.output_item.done`:
+- **`resp-1`:** input contains the user's request to run `export.py`; output contains the function call.
+- **`resp-2`:** input contains the user request, function call, and execution result; output contains the assistant's final answer.
 
-```json
-{
-  "type": "function_call",
-  "call_id": "call-1",
-  "name": "exec_command",
-  "arguments": "{\"cmd\":\"python export.py\",\"workdir\":\"/workspace\"}"
-}
-```
+The second call's input and output together contain all four records. Its verification record is therefore sufficient to check this retained context, without combining records from multiple calls. The complete API items are available in the [example fixture](https://github.com/olegische/thread-admission/blob/main/fixtures/api-call.json).
 
-The agent executes the command locally and constructs the result:
-
-```json
-{
-  "type": "function_call_output",
-  "call_id": "call-1",
-  "output": "Chunk ID: abc123\nWall time: 0.1000 seconds\nProcess exited with code 0\nOutput:\nWrote export.csv (128 rows).\n"
-}
-```
-
-The second input includes the user message, function call, and result. The model streams the final answer, “Created export.csv with 128 rows.” The proxy captures finalized output items and publishes a completed-call record after successful response completion. An interrupted stream does not become a completed-call record. [Streaming function calls](https://developers.openai.com/api/docs/guides/function-calling#streaming)
-
-| Completed call | Full request input | Finalized response output |
-|---|---|---|
-| `resp-1` | User message | Function call |
-| `resp-2` | User message, function call, tool result | Assistant answer |
-
-For this example, the second call alone covers all four records as input plus output. The first call's output is repeated in the second call's input. No cross-call history ledger is necessary to establish what the second call contained.
+For streaming responses, the proxy records finalized output items after successful completion. [Streaming function calls](https://developers.openai.com/api/docs/guides/function-calling#streaming)
 
 ### Compare a returned call with the operator's record
 
@@ -463,24 +434,14 @@ The runtime can export its answer as:
 }
 ```
 
-Both contain the same answer text. Neither the common text nor the different IDs establishes which runtime thread contains it. The runtime knows that association; the receiver must verify the content it proposes to restore.
-
-### One full call can cover the retained context
-
-In the export-script example, the first call receives the user message and returns a function call. The second receives the user message, function call, and tool result, then returns the final answer. Evidence for the second call covers all four records in that example, across its input and output.
-
-When a completed call's full input includes everything needed for continuation, its evidence can be sufficient. The response output must be covered too: the final answer is not already present in its own request.
-
-This establishes what the client presented and what the proxy delivered for that call. An assistant item found only in the input remains authenticated as supplied context. Proving that it was generated in an earlier call requires evidence of that earlier output.
-
-The same limit applies to compaction: a call containing a summary covers that summary, not the old records it replaced. Records added after the selected call are also outside its coverage. The worked path assumes full input at the proxy; a delta-only transport needs a separate way to establish the resolved context.
+The answer text survives export, but its surrounding object changes. A digest of the original API item cannot be checked directly against the exported `agentMessage`. The receiver needs a way to compare the retained content across these representations.
 
 ### Let the runtime connect the export to the call
 
 The admission question is now concrete: **can evidence of an inference call support accepting a thread supplied by an external runtime?** A possible integration works as follows:
 
 1. The proxy prepares evidence from the complete input and finalized output as each call completes. It identifies the call by the response ID exposed to the agent and scopes access to the authenticated API account.
-2. When saving, the runtime fixes the exported revision and selects the completed call that corresponds to it. This association lives in the runtime, not in the proxy.
+2. When saving, the runtime fixes the exported revision and selects a completed call covering the content to restore. A call containing a summary covers that summary; records added afterward need separate evidence. The association between the exported revision and the selected call lives in the runtime, not in the proxy.
 3. The runtime obtains that call's evidence and stores it with the transcript. A proposed retrieval interface can use the response ID; it is an extension to our proxy, not a standard Responses API evidence endpoint.
 4. On return, the receiving service verifies the evidence and compares its covered values with values extracted from the submitted transcript.
 5. The service restores only what that comparison supports. Uncovered records require an explicit choice such as admission as supplied context or rejection.

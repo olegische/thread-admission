@@ -2,6 +2,7 @@
 
 An English engineering article about accepting a user-held agent thread back into a service.
 
+- [Published on Medium](https://medium.com/@romoleg/agent-history-lives-on-the-users-device-how-can-an-ai-service-verify-it-f3344cdd4cbd)
 - [Assembled article](context_admission.md)
 - [Source sections](parts/)
 - [Build script](build.py)
@@ -18,7 +19,7 @@ An English engineering article about accepting a user-held agent thread back int
 | [04-verified-prefix-and-summary.md](parts/04-verified-prefix-and-summary.md) | A verified prefix and tail compaction: offset and hash, JSON Schema, Python, and continuation from a summary. |
 | [05-verify-api-requests-and-responses.md](parts/05-verify-api-requests-and-responses.md) | Complete input/output arrays for one call; an operator index scoped by API account and response ID; whole-item hashing and comparison without thread IDs, global positions, or cross-call deduplication. |
 | [06-portable-verification.md](parts/06-portable-verification.md) | Signed evidence for one completed call: full input/output, payload schema, and DSSE; retrieval by response ID as a proxy extension. |
-| [07-metadata-loss-and-compaction.md](parts/07-metadata-loss-and-compaction.md) | Definitions of thread, transcript, model context, and response output; why equal API items obscured the difference between these objects; when the last complete call is sufficient; the conceptual save/admission flow; transition to SD-JWT. |
+| [07-metadata-loss-and-compaction.md](parts/07-metadata-loss-and-compaction.md) | Definitions of thread, transcript, model context, and response output; differences between API items and runtime exports; call selection and coverage after compaction; the conceptual save/admission flow; transition to SD-JWT. |
 | [08-sd-jwt-component-evidence.md](parts/08-sd-jwt-component-evidence.md) | Claims for a specific call, disclosure policy, and an existing SD-JWT API: issuance, client-held disclosures and salts, presentation, verification, and claim extraction from a runtime transcript. |
 | [09-conclusion.md](parts/09-conclusion.md) | Choosing a mechanism: the runtime associates its thread with a call, and the receiving service verifies the covered values. |
 
@@ -44,7 +45,7 @@ Section 7 distinguishes a runtime thread from a call's context, then describes t
 
 SD-JWT uses JWS directly, rather than nesting inside section 6's DSSE envelope. RFC 9901 defines disclosures and their protection; claim selection, API-account/response-ID binding, and comparison rules belong to the application profile. The example uses `sd-jwt==0.10.4`. Full RFC conformance is not claimed: acceptance of unreferenced disclosures is reproduced and documented. The text adapter compares message claims and retains request/response membership, but does not verify returned tool records or their positions in the runtime thread. The client holds disclosures and salts; delayed retrieval of the complete package requires transient proxy retention.
 
-The [published-code checker](notes/check_sdjwt_example.py) extracts Python and JSON directly from the sections, executes issuance, presentation, verification, and matching, and checks rejection cases and the DSSE path. See the [SD-JWT example note](notes/sd-jwt-example.md) for details and commands.
+The [published-code checker](notes/check_sdjwt_example.py) extracts Python and JSON from the sections and loads the complete API call from the linked fixture. It executes issuance, presentation, verification, and matching, and checks rejection cases and the DSSE path. See the [SD-JWT example note](notes/sd-jwt-example.md) for details and commands.
 
 ## Build
 

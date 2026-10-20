@@ -49,12 +49,10 @@ Loading the `commandExecution` item above never reruns `python export.py`. If th
 
 Four return paths exercise different parts of this contract:
 
-| What came back | What the receiver needs to establish |
-|---|---|
-| The original saved revision | Its records match the saved revision. |
-| That revision plus local work | Where the verified history ends and whether the additions have separate verification coverage. |
-| A conversion to another format | Which content and relationships the conversion preserved. |
-| A summary | Whether to accept the new summary as context, and which original records remain available. |
+- **The original saved revision.** The receiver checks that its records match the saved revision.
+- **That revision plus local work.** The receiver identifies where the verified history ends and whether the additions have separate verification coverage.
+- **A conversion to another format.** The receiver establishes which content and relationships the conversion preserved.
+- **A summary.** The receiver decides whether to accept it as new context and establishes which original records remain available.
 
 None requires assuming the user is malicious. A runtime can regenerate IDs, omit a field it does not understand, or replace a long tool result with a summary. Treating these as supported transformations means specifying their effects, rather than deciding that similar-looking text is probably the same history.
 

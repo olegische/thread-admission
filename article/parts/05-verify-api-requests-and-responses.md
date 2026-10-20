@@ -14,39 +14,16 @@ If output-to-input conversion removes output-only fields, apply that agreed conv
 
 There is no deduplication across calls. When the agent sends earlier items again, those items belong to the new request's input too. Their positions are local to that array. This matches client-managed conversation state, where earlier input and output are sent with the next request. [Conversation state](https://developers.openai.com/api/docs/guides/conversation-state)
 
-### Follow the same two model calls
+### One call can cover the retained context
 
-Both requests use `stream: true`, send the accumulated context in `input`, and use neither `previous_response_id` nor a provider-managed conversation.
+When the runtime sends the accumulated history with each request, a later call can cover earlier exchanges:
 
-The first input contains the user's request to run `export.py`. The response introduces a function call, streams its arguments, and supplies the finalized item at `response.output_item.done`:
+- **`resp-1`:** input contains the user's request to run `export.py`; output contains the function call.
+- **`resp-2`:** input contains the user request, function call, and execution result; output contains the assistant's final answer.
 
-```json
-{
-  "type": "function_call",
-  "call_id": "call-1",
-  "name": "exec_command",
-  "arguments": "{\"cmd\":\"python export.py\",\"workdir\":\"/workspace\"}"
-}
-```
+The second call's input and output together contain all four records. Its verification record is therefore sufficient to check this retained context, without combining records from multiple calls. The complete API items are available in the [example fixture](https://github.com/olegische/thread-admission/blob/main/fixtures/api-call.json).
 
-The agent executes the command locally and constructs the result:
-
-```json
-{
-  "type": "function_call_output",
-  "call_id": "call-1",
-  "output": "Chunk ID: abc123\nWall time: 0.1000 seconds\nProcess exited with code 0\nOutput:\nWrote export.csv (128 rows).\n"
-}
-```
-
-The second input includes the user message, function call, and result. The model streams the final answer, “Created export.csv with 128 rows.” The proxy captures finalized output items and publishes a completed-call record after successful response completion. An interrupted stream does not become a completed-call record. [Streaming function calls](https://developers.openai.com/api/docs/guides/function-calling#streaming)
-
-| Completed call | Full request input | Finalized response output |
-|---|---|---|
-| `resp-1` | User message | Function call |
-| `resp-2` | User message, function call, tool result | Assistant answer |
-
-For this example, the second call alone covers all four records as input plus output. The first call's output is repeated in the second call's input. No cross-call history ledger is necessary to establish what the second call contained.
+For streaming responses, the proxy records finalized output items after successful completion. [Streaming function calls](https://developers.openai.com/api/docs/guides/function-calling#streaming)
 
 ### Compare a returned call with the operator's record
 

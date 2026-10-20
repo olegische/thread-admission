@@ -67,13 +67,22 @@ def main():
     if returned != json.loads(blocks("01-what-returning-a-thread-means.md", "json")[0]):
         raise AssertionError("Article/runtime-fixture drift")
     call = json.loads((ROOT / "fixtures/api-call.json").read_text())
-    tool_call, result = map(json.loads, blocks("05-verify-api-requests-and-responses.md", "json"))
     answer = next(json.loads(b) for b in blocks("07-metadata-loss-and-compaction.md", "json")
                   if json.loads(b).get("type") == "message")
     user = {"type": "message", "role": "user", "content": [
         {"type": "input_text", "text": returned[0]["content"][0]["text"]}]}
-    if call["input"] != [user, tool_call, result] or call["output"] != [answer]:
+    if len(call["input"]) != 3 or call["input"][0] != user or call["output"] != [answer]:
         raise AssertionError("Article/API-fixture drift")
+    tool_call, result = call["input"][1:]
+    execution = returned[1]
+    if (tool_call["type"] != "function_call"
+            or tool_call["name"] != "exec_command"
+            or json.loads(tool_call["arguments"]) != {
+                "cmd": execution["command"], "workdir": execution["cwd"]}
+            or result["type"] != "function_call_output"
+            or result["call_id"] != tool_call["call_id"]
+            or not result["output"].endswith(execution["aggregatedOutput"])):
+        raise AssertionError("API/runtime-fixture drift")
     print("PASS: standalone functions, constants, schemas and fixtures match the article", flush=True)
     for script, args in (
         ("article/build.py", ["--check"]),
