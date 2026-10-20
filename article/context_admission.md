@@ -415,7 +415,7 @@ Serialize `record_call(...)` with JCS and pass the bytes to `sign_dsse`. Store t
 
 Changing the tool output fails its item hash. Reordering input items fails the ordered-array comparison. Replacing the response identifier or either hash array inside the envelope fails its signature. A valid record for `resp-1` cannot substitute for `resp-2` when the caller requires the latter. Choosing an older valid call does not establish that it was the latest call in an external thread.
 
-The envelope can be issued at response completion and delivered immediately, or retained for authorized retrieval by response ID. This is a proposed proxy capability. It is not a built-in Responses API evidence endpoint. A later retrieval returns evidence prepared from the observed call; it must not sign a newly supplied history as though it had observed it earlier.
+The envelope can be issued at response completion and delivered immediately, or retained for authorized retrieval by response ID. This is a proposed proxy capability. It is not a built-in Responses API evidence endpoint.
 
 The next question concerns the object returned by the agent: its own thread transcript may no longer contain the API items in this representation.
 
