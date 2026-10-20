@@ -120,11 +120,6 @@ An unchanged snapshot is the easy baseline: compare it with a hash saved by the 
 | Verify a prefix, summarize the tail | The saved records before the saved offset, followed by a summary of the additions | A protected offset and prefix hash, plus compaction |
 | Compare returned content with model-call evidence | Records or claims whose content and supported relationships match an observed call | Verification data for the call's ordered input and output |
 
-The second approach combines snapshot recognition with compaction. It preserves the history the service can recognize without requiring a signature for every new message. The third uses observations of model calls as its reference. A call whose full input and output cover the retained context may be sufficient; other material needs separate coverage or a fallback policy.
-
-For that third approach, an operator can keep an index of API requests and responses or issue portable signed statements. These are implementation choices within the approach, not additional stages every service must adopt.
-
-The timing matters. A catalog entry made at export covers that revision. Digests recorded during a model call can cover its request and response. Hashing an upload for the first time at import establishes neither its earlier occurrence nor its place in a sequence.
 
 Historical TLS session tickets offer a precedent for the baseline: clients hold server-protected state for later resumption. A readable thread needs its own format and rules, but client custody does not itself prevent integrity protection. [RFC 5077](https://www.rfc-editor.org/rfc/rfc5077.html)
 
