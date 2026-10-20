@@ -59,14 +59,14 @@ The admission question is now concrete: **can evidence of an inference call supp
 1. The proxy prepares evidence from the complete input and finalized output as each call completes. It identifies the call by the response ID exposed to the agent and scopes access to the authenticated API account.
 2. When saving, the runtime fixes the exported revision and selects the completed call that corresponds to it. This association lives in the runtime, not in the proxy.
 3. The runtime obtains that call's evidence and stores it with the transcript. A proposed retrieval interface can use the response ID; it is an extension to our proxy, not a standard Responses API evidence endpoint.
-4. On return, the receiving service verifies the evidence and compares its covered values with values extracted from the submitted transcript. The runtime's claim that this is the right evidence is not sufficient on its own.
+4. On return, the receiving service verifies the evidence and compares its covered values with values extracted from the submitted transcript.
 5. The service restores only what that comparison supports. Uncovered records require an explicit choice such as admission as supplied context or rejection.
 
-A save or unsubscribe handler could trigger this process after the completed call and saved revision have been selected. The lifecycle event itself is not evidence. Retrieval must return material prepared from the observed call, rather than sign a newly uploaded transcript as though the proxy had seen it earlier.
+When saving or unsubscribing from a thread, the runtime can retrieve the prepared evidence for the selected call and store it with the transcript.
 
 ### Choose what the evidence must preserve
 
-A whole-item digest works when the saved API object survives. With a different runtime representation, we could retain a template of that object with its text removed, insert the returned text, and check the original digest. That works, but every verifier receiving the template also sees its retained metadata. IDs, annotations, and other fields can themselves be sensitive.
+A whole-item digest works when the saved API object survives. With a different runtime representation, one option is a **template with a hole**: retain the original object with a placeholder for its text, fill that placeholder with the returned text, and verify the reconstructed object's digest. The template also exposes the retained metadata to the verifier, including potentially sensitive IDs, annotations, and other fields.
 
 Instead, we can protect selected claims: message text and role, function name and arguments, or result content, bound to their position within the observed request or response. Each interface then extracts those claims, without reconstructing the original API object. Values removed or rewritten during export still cannot pass as the originals.
 
