@@ -22,9 +22,9 @@ uv run --locked python article/build.py
 uv run --locked python article/build.py --check
 ```
 
-The assembled article and its source sections were copied without text changes
-from the current article draft on 2026-10-20. The original copy remains in the
-content repository. This project does not depend on that repository at runtime.
+The assembled article and its source sections were initially copied without text
+changes from the article draft on 2026-10-20. The previous draft location now links
+to this repository. This project does not depend on that repository at runtime.
 
 ## Run the code
 

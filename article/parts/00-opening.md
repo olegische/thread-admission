@@ -1,4 +1,4 @@
-# The User Stores the Agent Thread. What Happens When It Comes Back?
+# Agent History Lives on the User’s Device. How Can an AI Service Verify It?
 
 *A practical look at saved conversations, integrity checks, local execution, and the limits of resume.*
 
