@@ -130,6 +130,8 @@ Historical TLS session tickets offer a precedent for the baseline: clients hold 
 
 When saving a thread, the service computes its hash and keeps that hash under the owner, thread, and revision identifiers. The user keeps the complete snapshot. On return, the service hashes the uploaded bytes and compares the result with its saved value.
 
+Runnable versions of the examples, along with fixtures and JSON Schemas, are available in the [companion repository](https://github.com/olegische/thread-admission).
+
 The following catalog entry is sufficient to recognize the saved snapshot:
 
 ```json
@@ -805,3 +807,9 @@ Keeping history with the user allows work to continue without a server-side copy
 - **We use SD-JWT to compare the history with that evidence.** The inference proxy signs selected values from model requests and responses. When the history returns, the receiving service verifies the signature and compares those values with the thread's records. The example checks message text and roles this way, even when the application stores them in a different format.
 
 The history thus stays with the user, while the service gains a basis for restoring it. The service continues with verified content and separately decides how to handle additions for which no evidence is available.
+
+### Run the examples
+
+The [companion repository](https://github.com/olegische/thread-admission) contains runnable Python examples for snapshot and prefix verification, per-call records, DSSE signatures, and SD-JWT verification across transcript formats. It includes the article's fixtures, JSON Schemas, and checks that keep the code synchronized with the text.
+
+Follow the [setup instructions](https://github.com/olegische/thread-admission#run-the-code) to run the examples and verification checks, including 43 rejection cases.

@@ -2,6 +2,8 @@
 
 When saving a thread, the service computes its hash and keeps that hash under the owner, thread, and revision identifiers. The user keeps the complete snapshot. On return, the service hashes the uploaded bytes and compares the result with its saved value.
 
+Runnable versions of the examples, along with fixtures and JSON Schemas, are available in the [companion repository](https://github.com/olegische/thread-admission).
+
 The following catalog entry is sufficient to recognize the saved snapshot:
 
 ```json
