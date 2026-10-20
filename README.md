@@ -10,7 +10,7 @@ transcript with claims captured at the model API boundary.
 
 ## Article
 
-- [Assembled English article](article/context_admission_medium_v01.md)
+- [Assembled English article](article/context_admission.md)
 - [Ten source sections](article/parts/)
 - [Editorial notes and section guide](article/README.md)
 - [Executed checks and limits](article/notes/sd-jwt-example.md)
@@ -23,7 +23,7 @@ uv run --locked python article/build.py --check
 ```
 
 The assembled article and its source sections were copied without text changes
-from the current Medium draft on 2026-10-20. The original copy remains in the
+from the current article draft on 2026-10-20. The original copy remains in the
 content repository. This project does not depend on that repository at runtime.
 
 ## Run the code

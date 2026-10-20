@@ -1,8 +1,8 @@
-# Context admission — Medium v01
+# Context admission
 
-An English engineering article adapted from academic draft v04. This is a separate Medium edition; the original academic draft remains in the content repository.
+An English engineering article about accepting a user-held agent thread back into a service.
 
-- [Assembled article](context_admission_medium_v01.md)
+- [Assembled article](context_admission.md)
 - [Source sections](parts/)
 - [Build script](build.py)
 - [Codex example checked against source code](notes/codex-thread-example.md)

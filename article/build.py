@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assemble the Medium draft from its ordered Markdown parts."""
+"""Assemble the article from its ordered Markdown parts."""
 
 import argparse
 from pathlib import Path
@@ -19,7 +19,7 @@ PARTS = (
     "08-sd-jwt-component-evidence.md",
     "09-conclusion.md",
 )
-OUTPUT = ROOT / "context_admission_medium_v01.md"
+OUTPUT = ROOT / "context_admission.md"
 
 
 def word_count(text):
@@ -51,7 +51,7 @@ def main():
         print(f"Built {OUTPUT.name} from {len(PARTS)} parts")
 
     count = word_count(assembled)
-    print(f"Medium body: {count:,} words")
+    print(f"Article body: {count:,} words")
 
 
 if __name__ == "__main__":
