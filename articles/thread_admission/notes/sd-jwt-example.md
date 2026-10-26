@@ -16,7 +16,7 @@ Executed against Python 3.12, `sd-jwt==0.10.4`, `jwcrypto==1.6.1`, `jsonschema==
 
 ```sh
 uv sync --locked
-uv run --locked python article/notes/check_sdjwt_example.py
+uv run --locked python articles/thread_admission/notes/check_sdjwt_example.py
 ```
 
 The script extracts JSON fixtures and exact executable Python blocks from the current Markdown. The App Server transcript comes from section 1, the API call/result from section 5, the API answer from section 7 and the SD-JWT schema from section 8. No crypto or serialization mocking is used.

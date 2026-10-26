@@ -11,6 +11,6 @@ The history thus stays with the user, while the service gains a basis for restor
 
 ### Run the examples
 
-The [companion repository](https://github.com/olegische/thread-admission) contains runnable Python examples for snapshot and prefix verification, per-call records, DSSE signatures, and SD-JWT verification across transcript formats. It includes the article's fixtures, JSON Schemas, and checks that keep the code synchronized with the text.
+The [companion repository](../../../README.md) contains runnable Python examples for snapshot and prefix verification, per-call records, DSSE signatures, and SD-JWT verification across transcript formats. It includes the article's fixtures, JSON Schemas, and checks that keep the code synchronized with the text.
 
-Follow the [setup instructions](https://github.com/olegische/thread-admission#run-the-code) to run the examples and verification checks, including 43 rejection cases.
+Follow the [setup instructions](../../../README.md#run-the-code) to run the examples and verification checks, including 43 rejection cases.

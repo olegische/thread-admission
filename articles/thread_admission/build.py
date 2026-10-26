@@ -3,7 +3,9 @@
 
 import argparse
 from pathlib import Path
+import posixpath
 import re
+from urllib.parse import urlsplit, urlunsplit
 
 
 ROOT = Path(__file__).resolve().parent
@@ -20,6 +22,18 @@ PARTS = (
     "09-conclusion.md",
 )
 OUTPUT = ROOT / "context_admission.md"
+
+
+def rebase_links(text):
+    """Resolve section-relative links from the assembled article's directory."""
+    def replace(match):
+        target = urlsplit(match.group(1))
+        if target.scheme or target.netloc or not target.path or target.path.startswith("/"):
+            return match.group(0)
+        path = posixpath.normpath(posixpath.join("parts", target.path))
+        return "](" + urlunsplit(("", "", path, target.query, target.fragment)) + ")"
+
+    return re.sub(r"\]\(([^)\s]+)\)", replace, text)
 
 
 def word_count(text):
@@ -39,9 +53,7 @@ def main():
         text = (ROOT / "parts" / name).read_text(encoding="utf-8").strip()
         if not text:
             raise SystemExit(f"Empty part: {name}")
-        # Image paths in parts are relative to article/parts/.
-        text = text.replace("](../images/", "](images/")
-        chunks.append(text)
+        chunks.append(rebase_links(text))
     assembled = "\n\n".join(chunks) + "\n"
 
     if args.check:

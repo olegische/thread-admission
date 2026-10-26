@@ -1,6 +1,6 @@
 # Thread admission
 
-An engineering article and runnable Python examples for accepting a user-held
+Engineering articles and runnable Python examples for accepting a user-held
 agent thread back into a service.
 
 The examples compare saved snapshots, verify an unchanged prefix, and authenticate
@@ -8,24 +8,39 @@ one model call's input and output through an operator index, DSSE, or SD-JWT.
 The cross-format example compares selected message claims from a Codex App Server
 transcript with claims captured at the model API boundary.
 
-## Article
+## Articles
+
+### Thread admission
 
 - [Published on Medium](https://medium.com/@romoleg/agent-history-lives-on-the-users-device-how-can-an-ai-service-verify-it-f3344cdd4cbd)
-- [Assembled English article](article/context_admission.md)
-- [Ten source sections](article/parts/)
-- [Editorial notes and section guide](article/README.md)
-- [Executed checks and limits](article/notes/sd-jwt-example.md)
+- [Assembled English article](articles/thread_admission/context_admission.md)
+- [Ten source sections](articles/thread_admission/parts/)
+- [Editorial notes and section guide](articles/thread_admission/README.md)
+- [Executed checks and limits](articles/thread_admission/notes/sd-jwt-example.md)
 
 Edit the section files, then rebuild:
 
 ```sh
-uv run --locked python article/build.py
-uv run --locked python article/build.py --check
+uv run --locked python articles/thread_admission/build.py
+uv run --locked python articles/thread_admission/build.py --check
 ```
 
 The assembled article and its source sections were initially copied without text
 changes from the article draft on 2026-10-20. The previous draft location now links
 to this repository. This project does not depend on that repository at runtime.
+
+### Tool admission (draft)
+
+- [Assembled English draft](articles/tool_admission/tool_admission_v01.md)
+- [Ten source sections](articles/tool_admission/parts/)
+- [Editorial notes and draft status](articles/tool_admission/README.md)
+
+Edit the section files, then rebuild:
+
+```sh
+uv run --locked python articles/tool_admission/build.py
+uv run --locked python articles/tool_admission/build.py --check
+```
 
 ## Run the code
 
@@ -77,7 +92,7 @@ finalized items. No live Codex/proxy round trip is claimed.
 
 The pinned `sd-jwt==0.10.4` reference release predates RFC 9901 and accepts
 unreferenced disclosures. The checks reproduce that gap; they do not establish full
-RFC conformance or production readiness. See the [verification note](article/notes/sd-jwt-example.md).
+RFC conformance or production readiness. See the [verification note](articles/thread_admission/notes/sd-jwt-example.md).
 
 ## Local history
 

@@ -1,4 +1,4 @@
-"""Executable example from article/parts/05-verify-api-requests-and-responses.md."""
+"""Executable example from articles/thread_admission/parts/05-verify-api-requests-and-responses.md."""
 
 from hashlib import sha256
 

@@ -124,7 +124,7 @@ Historical TLS session tickets offer a precedent for the baseline: clients hold 
 
 When saving a thread, the service computes its hash and keeps that hash under the owner, thread, and revision identifiers. The user keeps the complete snapshot. On return, the service hashes the uploaded bytes and compares the result with its saved value.
 
-Runnable versions of the examples, along with fixtures and JSON Schemas, are available in the [companion repository](https://github.com/olegische/thread-admission).
+Runnable versions of the examples, along with fixtures and JSON Schemas, are available in the [companion repository](../../README.md).
 
 The following catalog entry is sufficient to recognize the saved snapshot:
 
@@ -273,7 +273,7 @@ When the runtime sends the accumulated history with each request, a later call c
 - **`resp-1`:** input contains the user's request to run `export.py`; output contains the function call.
 - **`resp-2`:** input contains the user request, function call, and execution result; output contains the assistant's final answer.
 
-The second call's input and output together contain all four records. Its verification record is therefore sufficient to check this retained context, without combining records from multiple calls. The complete API items are available in the [example fixture](https://github.com/olegische/thread-admission/blob/main/fixtures/api-call.json).
+The second call's input and output together contain all four records. Its verification record is therefore sufficient to check this retained context, without combining records from multiple calls. The complete API items are available in the [example fixture](../../fixtures/api-call.json).
 
 For streaming responses, the proxy records finalized output items after successful completion. [Streaming function calls](https://developers.openai.com/api/docs/guides/function-calling#streaming)
 
@@ -771,6 +771,6 @@ The history thus stays with the user, while the service gains a basis for restor
 
 ### Run the examples
 
-The [companion repository](https://github.com/olegische/thread-admission) contains runnable Python examples for snapshot and prefix verification, per-call records, DSSE signatures, and SD-JWT verification across transcript formats. It includes the article's fixtures, JSON Schemas, and checks that keep the code synchronized with the text.
+The [companion repository](../../README.md) contains runnable Python examples for snapshot and prefix verification, per-call records, DSSE signatures, and SD-JWT verification across transcript formats. It includes the article's fixtures, JSON Schemas, and checks that keep the code synchronized with the text.
 
-Follow the [setup instructions](https://github.com/olegische/thread-admission#run-the-code) to run the examples and verification checks, including 43 rejection cases.
+Follow the [setup instructions](../../README.md#run-the-code) to run the examples and verification checks, including 43 rejection cases.

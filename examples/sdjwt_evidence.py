@@ -1,4 +1,4 @@
-"""Executable example from article/parts/08-sd-jwt-component-evidence.md."""
+"""Executable example from articles/thread_admission/parts/08-sd-jwt-component-evidence.md."""
 
 from time import time
 

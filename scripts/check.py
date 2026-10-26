@@ -1,13 +1,58 @@
 """Check article assembly, code/schema consistency, and executable examples."""
 import ast
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
 import sys
+from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
-PARTS = ROOT / "article/parts"
+PARTS = ROOT / "articles/thread_admission/parts"
+
+
+def check_markdown_links():
+    count = 0
+    for directory, folders, filenames in os.walk(ROOT):
+        folders[:] = [name for name in folders if not name.startswith(".") and name != "__pycache__"]
+        for filename in filenames:
+            if not filename.endswith(".md"):
+                continue
+            source = Path(directory) / filename
+            text = source.read_text(encoding="utf-8")
+            links = re.findall(r"\]\((?:<([^>\n]+)>|([^)\s]+))\)", text)
+            links += re.findall(r"(?m)^ {0,3}\[[^]\n]+\]:\s*(?:<([^>\n]+)>|(\S+))", text)
+            for angle, plain in links:
+                link = angle or plain
+                url = urlsplit(link)
+                if url.scheme == "file" or url.path.startswith("/") and not url.netloc:
+                    raise AssertionError(f"Absolute local link in {source.relative_to(ROOT)}: {link}")
+                if url.scheme or url.netloc:
+                    own_repo = (url.hostname == "github.com" and
+                                url.path.rstrip("/").startswith("/olegische/thread-admission/")
+                                or url.hostname == "raw.githubusercontent.com" and
+                                url.path.startswith("/olegische/thread-admission/")
+                                or url.hostname == "github.com" and
+                                url.path.rstrip("/") == "/olegische/thread-admission" and url.fragment)
+                    if own_repo:
+                        raise AssertionError(f"Use a relative repository link in {source.relative_to(ROOT)}: {link}")
+                    continue
+                target = (source.parent / unquote(url.path)).resolve() if url.path else source
+                if not target.is_relative_to(ROOT) or not target.exists():
+                    raise AssertionError(f"Missing repository target in {source.relative_to(ROOT)}: {link}")
+                if url.fragment and target.suffix == ".md":
+                    anchors = set()
+                    seen = {}
+                    for heading in re.findall(r"(?m)^ {0,3}#{1,6}\s+(.+?)\s*#*\s*$", target.read_text(encoding="utf-8")):
+                        slug = re.sub(r"[^\w\- ]", "", heading.lower()).replace(" ", "-")
+                        number = seen.get(slug, 0)
+                        anchors.add(slug + (f"-{number}" if number else ""))
+                        seen[slug] = number + 1
+                    if unquote(url.fragment) not in anchors:
+                        raise AssertionError(f"Missing Markdown anchor in {source.relative_to(ROOT)}: {link}")
+                count += 1
+    print(f"PASS: {count} relative Markdown links and images resolve", flush=True)
 
 
 def blocks(part, language):
@@ -27,6 +72,7 @@ def definitions(source):
 
 
 def main():
+    check_markdown_links()
     sources = {
         "snapshot.py": "03-snapshot-and-catalog.md",
         "prefix.py": "04-verified-prefix-and-summary.md",
@@ -85,9 +131,10 @@ def main():
         raise AssertionError("API/runtime-fixture drift")
     print("PASS: standalone functions, constants, schemas and fixtures match the article", flush=True)
     for script, args in (
-        ("article/build.py", ["--check"]),
+        ("articles/thread_admission/build.py", ["--check"]),
+        ("articles/tool_admission/build.py", ["--check"]),
         ("examples/run.py", []),
-        ("article/notes/check_sdjwt_example.py", []),
+        ("articles/thread_admission/notes/check_sdjwt_example.py", []),
     ):
         subprocess.run([sys.executable, str(ROOT / script), *args], cwd=ROOT, check=True)
 

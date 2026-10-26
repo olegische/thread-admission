@@ -1,4 +1,4 @@
-"""Executable example from article/parts/06-portable-verification.md."""
+"""Executable example from articles/thread_admission/parts/06-portable-verification.md."""
 
 from base64 import b64decode, b64encode
 

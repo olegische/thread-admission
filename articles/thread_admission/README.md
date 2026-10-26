@@ -52,10 +52,10 @@ The [published-code checker](notes/check_sdjwt_example.py) extracts Python and J
 From the repository root:
 
 ```sh
-uv run --locked python article/build.py
-uv run --locked python article/build.py --check
+uv run --locked python articles/thread_admission/build.py
+uv run --locked python articles/thread_admission/build.py --check
 ```
 
-Edit `article/parts/`, then run the build. The script joins ten sections in a fixed order; `--check` verifies that the assembled file matches them exactly. The article ends with section 9's conclusion. Section 1 defines the approval/audit boundary, while the test matrix remains in the technical notes.
+Edit `articles/thread_admission/parts/`, then run the build. The script joins ten sections in a fixed order; `--check` verifies that the assembled file matches them exactly. The article ends with section 9's conclusion. Section 1 defines the approval/audit boundary, while the test matrix remains in the technical notes.
 
 The first edition had **5,025 words versus 10,950 in academic v04**, a **54.1% reduction**. Both counts split the Markdown body on whitespace, excluding YAML and References but including headings, tables, and code. This is a historical comparison for the first edition; the current build reports the article's word count without depending on the academic repository.

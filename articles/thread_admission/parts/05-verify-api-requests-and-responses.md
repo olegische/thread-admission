@@ -21,7 +21,7 @@ When the runtime sends the accumulated history with each request, a later call c
 - **`resp-1`:** input contains the user's request to run `export.py`; output contains the function call.
 - **`resp-2`:** input contains the user request, function call, and execution result; output contains the assistant's final answer.
 
-The second call's input and output together contain all four records. Its verification record is therefore sufficient to check this retained context, without combining records from multiple calls. The complete API items are available in the [example fixture](https://github.com/olegische/thread-admission/blob/main/fixtures/api-call.json).
+The second call's input and output together contain all four records. Its verification record is therefore sufficient to check this retained context, without combining records from multiple calls. The complete API items are available in the [example fixture](../../../fixtures/api-call.json).
 
 For streaming responses, the proxy records finalized output items after successful completion. [Streaming function calls](https://developers.openai.com/api/docs/guides/function-calling#streaming)
 

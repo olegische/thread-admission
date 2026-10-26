@@ -1,4 +1,4 @@
-"""Executable example from article/parts/04-verified-prefix-and-summary.md."""
+"""Executable example from articles/thread_admission/parts/04-verified-prefix-and-summary.md."""
 
 from hashlib import sha256
 
