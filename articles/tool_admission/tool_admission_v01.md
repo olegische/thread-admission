@@ -1,22 +1,18 @@
 # Tool Admission: What a Service May Believe About a Tool Record It Did Not Witness
 
-*Three proposals to standardize evidence about tool calls were written from the issuer's side. This article is about the receiving side: what a service may restore from a tool record in a returned thread, and what it does when no evidence came with it.*
+*This article is about the receiving side: what a service may restore from a tool record in a returned thread, and what it does when no evidence came with it.*
 
-In 2026 the Model Context Protocol community worked through what evidence about a tool call can and cannot establish. Three proposals, an [audit-context profile](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2817), a [signed request attestation](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2787) and a [server-side execution record](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2828), converged on the same distinctions: client-asserted context is not evidence, a signed request is not an executed effect, only the party that executed can speak to execution. Their participants also named what was still missing. A refusal record that nothing consumes is inert; “unaccounted” can mean that nothing ran or that the evidence stops here; and later stages must not inherit trust from earlier metadata. One implementer reported the failure those gaps produce: a consumer had merged an outcome reported by the host with an outcome witnessed by the runtime, because it had no rule that kept them apart.
+Suppose you are building a service for an AI assistant that lets users resume work from a saved conversation. A user may have continued that conversation in a local agent before returning it to your service. Alongside messages, the history contains tool calls and their results. Which of those results can your assistant rely on when continuing the task?
 
-All three proposals are about the issuer: who signs what at the moment of the call. None is about the consumer. A thread with tool records comes back a week later from storage the user controls, possibly through another runtime and a format conversion, with these records, with other records, or with none. What may the receiving service restore as prior history, what must it treat as the user’s account of events, and what does it do in the common case where no evidence came along? That is tool admission, and it is what this article adds.
+The [earlier article](../thread_admission/context_admission.md) used evidence issued by a proxy that observed model calls: the service can check that the returned content matches what the proxy received as input or delivered as output. For tool results, this leaves a gap. Evidence that a model received the text `Tests passed` does not establish that the tests produced it. A runtime or user could have changed the result before it reached the model, and the proxy would have witnessed the changed text.
 
-### Why the receiving side cares
+This problem surfaced in the [MCP discussion on audit context for tool calls](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2817#issuecomment-5390870362). An implementer reported that a consumer had treated an outcome reported by the host in the same way as an outcome observed by the runtime. The distinction between how the records were obtained was lost when they were used.
 
-Messages in a thread are what the agent said. Tool records are what the agent believes happened, and they are what a control plane grants authority on. A record that tests passed leads to a deployment. A record that an export file was written leads to it being sent. A record that a payment went through leads to the payment not being repeated. If the record was fabricated or is stale, a service that continues the thread acts on something that did not happen.
+The MCP proposals identify two separate things a service might receive: a [signed statement of what was requested](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2787) and a [record of what the executing side decided and returned](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2828).
 
-Without evidence about the record the service has three options, all bad. It cannot re-check: the command ran in the user's environment, to which it has no access. It can drop the record or summarize it into the user's words, losing the work; that is what products do today when they move a session from a laptop into the cloud. Or it can believe the record, and hand its control plane to whoever last edited the JSON. Admission is the rule by which the control plane learns what it may rely on before it acts.
+A receiving service needs to establish who attests to the result, which call it belongs to, and whether it matches the result the model received. When evidence is missing, the service still needs a rule for retaining and using the record.
 
-This is a different reason from the one that motivated the earlier article, and the difference is worth stating. The earlier article answered a provider-policy problem: a returned thread is input, input must pass the operator's safeguards, and evidence let the operator distinguish output it had mediated itself from content supplied from outside. That motive does not transfer to tool records. A tool result in the input of a model call is client-supplied content whether or not anyone signed it, and the provider's policies apply to it regardless. Tool admission is not about avoiding safeguards. It is about what the agent is allowed to treat as done.
-
-This is a continuation of [an earlier article](../thread_admission/context_admission.md) on admitting user-held threads. That article was, in effect, inference admission: it showed how a receiving service can match returned messages against evidence issued by the proxy that observed each model call, and it left one record uncovered on purpose, the record of the tool call. This article covers it.
-
-One boundary before the argument. The question here is never whether what a tool returned is true. Observation is mediated at every link. A proxy sees the model's input and output. An executor sees its own request and its own result. A weather API can attest which forecast it returned, not what the weather was. Nor is this a registry of facts: the article does not decide which statements in a thread are facts. It gives the control plane a typed input before an action, and what the control plane does with the type is its policy. A service that admits a record recognizes it as something its continuation may rely on in a stated way. That is an institutional fact about the service, not a fact about the world, and the article does not pretend otherwise.
+That decision is tool admission. The executor is the party that processed the tool call and returned the result. We will define its statement, the checks that link it to model evidence, and admission rules for records with different evidence coverage. These rules state what the service may accept as established. Its policy decides whether that is sufficient for the next action.
 
 ## What the discussions established, and where it already existed
 
@@ -314,6 +310,8 @@ Two rules sit on top of the table. Import does not activate: a restored record o
 
 ### Counterexample one: the exit code
 
+On August 24, 2026, XuebinMa [reported a verifier bug](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2817#issuecomment-5390870362): "a host-asserted `exit_code: 0` and a runtime-witnessed execution landed in the same total". The fix separated `ExecutionFinished` from `ExecutionReported`. The counterexample below applies that distinction to a returned thread whose tool result was changed.
+
 The user's command failed. The runtime, or the user, rewrote the result before the model saw it. The model was shown a success and answered accordingly. The thread comes back with model evidence intact.
 
 What the executor produced:
@@ -341,7 +339,7 @@ Wrote export.csv (128 rows).
 
 The model statement's disclosed `output` for `call-1` hashes to `6b3f9753…`. Model evidence verifies: the proxy did see this string in the input, and it signed it. Without tool evidence the record is Shown, which is the correct standing: the service holds that the model was told the command succeeded, and nothing more.
 
-With tool evidence the picture changes. The executor's statement carries `result.sha256` of `5501f22c…` for the failing output. The second link check compares `6b3f9753…` with `5501f22c…` and returns false. Both signatures are valid. Both statements are honest. The record is not Restored, because the two honest statements are about different results, and the service now knows that what the model was shown is not what the tool produced. This is the one case in which two valid signatures produce a rejection, and it is the case the merged-outcome bug could not express.
+With tool evidence the picture changes. The executor's statement carries `result.sha256` of `5501f22c…` for the failing output. The second link check compares `6b3f9753…` with `5501f22c…` and returns false. Both signatures are valid. Both statements are honest. The record is not Restored, because the two honest statements are about different results, and the service now knows that what the model was shown is not what the tool produced. The comparison detects the mismatch even though both signatures verify.
 
 ### Counterexample two: the model behind the server
 

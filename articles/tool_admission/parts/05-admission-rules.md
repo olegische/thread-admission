@@ -13,6 +13,8 @@ Two rules sit on top of the table. Import does not activate: a restored record o
 
 ### Counterexample one: the exit code
 
+On August 24, 2026, XuebinMa [reported a verifier bug](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2817#issuecomment-5390870362): "a host-asserted `exit_code: 0` and a runtime-witnessed execution landed in the same total". The fix separated `ExecutionFinished` from `ExecutionReported`. The counterexample below applies that distinction to a returned thread whose tool result was changed.
+
 The user's command failed. The runtime, or the user, rewrote the result before the model saw it. The model was shown a success and answered accordingly. The thread comes back with model evidence intact.
 
 What the executor produced:
@@ -40,7 +42,7 @@ Wrote export.csv (128 rows).
 
 The model statement's disclosed `output` for `call-1` hashes to `6b3f9753…`. Model evidence verifies: the proxy did see this string in the input, and it signed it. Without tool evidence the record is Shown, which is the correct standing: the service holds that the model was told the command succeeded, and nothing more.
 
-With tool evidence the picture changes. The executor's statement carries `result.sha256` of `5501f22c…` for the failing output. The second link check compares `6b3f9753…` with `5501f22c…` and returns false. Both signatures are valid. Both statements are honest. The record is not Restored, because the two honest statements are about different results, and the service now knows that what the model was shown is not what the tool produced. This is the one case in which two valid signatures produce a rejection, and it is the case the merged-outcome bug could not express.
+With tool evidence the picture changes. The executor's statement carries `result.sha256` of `5501f22c…` for the failing output. The second link check compares `6b3f9753…` with `5501f22c…` and returns false. Both signatures are valid. Both statements are honest. The record is not Restored, because the two honest statements are about different results, and the service now knows that what the model was shown is not what the tool produced. The comparison detects the mismatch even though both signatures verify.
 
 ### Counterexample two: the model behind the server
 
