@@ -1,35 +1,34 @@
-# Tool admission — рабочий каталог статьи
+# Tool admission — article working directory
 
-- [Собранный драфт v01 (EN)](tool_admission_v01.md)
-- `parts/` — по файлу на раздел, `00-`…`09-`, в порядке сборки
-- `build.py` — сборка; `--check` проверяет, что собранный файл актуален
+- [Assembled draft v01 (EN)](tool_admission_v01.md)
+- `parts/` — one file per section, `00-`…`08-`, in build order
+- `build.py` — assembly; `--check` verifies that the assembled file is up to date
 
 ```sh
 python3 build.py
 python3 build.py --check
 ```
 
-## Статус v01 (2026-10-26)
+## Status of v01 (2026-10-26)
 
-Полный драфт: добавлены «зачем» для принимающей стороны (§0), таблица прецедентов класса источника и Temporal (§1), `source_class` вместо `epistemic_class`, потребитель класса и типизация через `vct` с таблицей claims (§3), контрпример 2 под разные акторы (§5), три разведения (§8), standing / authority и lineage между агентами (§9). Написан от проблемы, не от кода: эксперимент (§7) специфицирован и помечен в тексте как не запущенный; результаты не заявлены. Схема tool-статемента и две функции на Python в §3–§4 — предложенный профиль, референсная реализация не опубликована, и текст это говорит.
+Complete draft. Added: the "why" for the receiving side (§0), precedents for evidence and Temporal (§1), `source_class` instead of `epistemic_class`, the consumer of the class (§2), an example profile typed through `vct` (§6), counterexample 2 for different actors (§4), three distinctions (§7), standing / authority and lineage between agents (§8). Written from the problem, not from code: the experiment (§6) is specified and marked in the text as not run; no results are claimed. The tool statement schema in §6 and the two Python functions in §3 are a proposed profile; no reference implementation is published, and the text says so.
 
-Digest'ы в §4–§5 настоящие: посчитаны `rfc8785` + SHA-256 по фикстурам thread-admission (`fixtures/api-call.json`) и по варианту результата с exit code 1.
+The digests in §3–§4 are real: computed with `rfc8785` + SHA-256 over the thread-admission fixtures (`fixtures/api-call.json`) and over a result variant with exit code 1.
 
-## Редакторские нормы
+## Editorial norms
 
-Тон по отношению к сообществу MCP — признание сделанного, без счёта провалов. Статусы и даты предложений приводятся нейтрально в таблице слоёв §1. Основание правок — заявления принципала.
+Tone toward the MCP community: acknowledge what has been done, without tallying failures. Edits are grounded in the principal's statements.
 
-Тон и способ изложения — как в первой статье: конкретная ситуация, проблема принимающего сервиса, затем её решение. Обсуждения MCP служат источником реальных проблем и ссылок; открытие объясняет эти проблемы на понятном примере, без ретроспективного обзора и терминов, требующих знакомства с исходными обсуждениями.
+Tone and manner of presentation as in the first article: a concrete situation, the receiving service's problem, then its solution. MCP discussions serve as a source of real problems and references; the opening explains these problems through an accessible example, without a retrospective survey or terms that require familiarity with the original discussions.
 
-## Что сверить до публикации (CHECK)
+## To verify before publication (CHECK)
 
-1. Цитаты участников MCP по первичным страницам: «the refusal record is inert», «unaccounted» в двух смыслах (XuebinMa, 2026-09-13); «later stages must not silently inherit trust from earlier metadata» (ozereray, 2026-09-15); «defaults are unknown, not clean», «a gate that ran and allowed from one that never ran» (damoclais, 2026-09-14 / 09-28); «recompute immediately before execution» (XuebinMa, 2817); «proves the request, not the outcome» (текст SEP-2787); «explicitly not authorization evidence» (текст SEP-2817). Баг про host-reported / runtime-witnessed проверен по первоисточнику 2026-10-26: XuebinMa (agent-guard), 2026-08-24, https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2817#issuecomment-5390870362. Реальный инцидент в их верификаторе, не гипотеза. Дословно: «Until last week both emitted the same audit record type»; «Our verifier reduced the record to a counter»; «a host-asserted `exit_code: 0` and a runtime-witnessed execution landed in the same total»; «The distinction was representable, attributed, documented, and gone by the time anyone read a summary». Типы записей после исправления: `ExecutionFinished` (witnessed) и `ExecutionReported` («transcribed rather than witnessed»). В §0 пересказ ссылается на конкретный комментарий; дословная цитата про `exit_code: 0`, автор, дата и типы записей приведены рядом с контрпримером в §5.
-2. Даты и статусы: #2704 2026-05-09; SEP-2787 2026-05-25 → 2026-09-22; SEP-2817 2026-05-29, open; SEP-2828 2026-05-31 → 2026-07-18; draft-sirkkavaara-vaara-receipt-14 2026-10-15; #2789 закрыт 2026-06-30.
-3. Имена полей по спецификациям: SLSA Provenance v1 (`runDetails.builder`, `buildDefinition.externalParameters` / `internalParameters` / `resolvedDependencies`), VSA (`verifier.id`, `timeVerified`, `policy`, `inputAttestations`, `verificationResult`, `slsaVersion`), in-toto `ResourceDescriptor`, EAT `profile`, XACML decisions. Ссылки в §1 ведут на slsa.dev и OASIS; сверить версии.
-4. `draft-gilda-wimse-agent-audit-record`: подтвердить, что использует in-toto Statement + DSSE + JCS (взято из диалога `chatgpt-01.txt`, не из первоисточника).
-5. Исторические примеры в §2 (DMARC и требования Gmail/Yahoo 2024, CT в Chrome 2018, PSD2, Let's Encrypt, SLSA в CI, MDN RFC 3798, HTTP Message Signatures в ActivityPub) — даты и формулировки по первоисточникам, если останутся в тексте с датами.
-6. §7: перед публикацией либо заменить «specified and not yet run» на результаты с версиями, либо оставить как есть и так и опубликовать. Второе честно, но слабее статьи про треды.
+1. Quotes from MCP participants against the primary pages: "the refusal record is inert", "unaccounted" in two senses (XuebinMa, 2026-09-13); "later stages must not silently inherit trust from earlier metadata" (ozereray, 2026-09-15); "defaults are unknown, not clean", "a gate that ran and allowed from one that never ran" (damoclais, 2026-09-14 / 09-28); "recompute immediately before execution" (XuebinMa, 2817); "proves the request, not the outcome" (text of SEP-2787); "explicitly not authorization evidence" (text of SEP-2817). The host-reported / runtime-witnessed bug was checked against the primary source on 2026-10-26: XuebinMa (agent-guard), 2026-08-24, https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2817#issuecomment-5390870362. A real incident in their verifier, not a hypothesis. Verbatim: "Until last week both emitted the same audit record type"; "Our verifier reduced the record to a counter"; "a host-asserted `exit_code: 0` and a runtime-witnessed execution landed in the same total"; "The distinction was representable, attributed, documented, and gone by the time anyone read a summary". Record types after the fix: `ExecutionFinished` (witnessed) and `ExecutionReported` ("transcribed rather than witnessed"). In §0 the retelling links to the specific comment; the verbatim quote about `exit_code: 0`, the author, the date and the record types appear next to the counterexample in §4.
+2. Dates and statuses: #2704 2026-05-09; SEP-2787 2026-05-25 → 2026-09-22; SEP-2817 2026-05-29, open; SEP-2828 2026-05-31 → 2026-07-18; draft-sirkkavaara-vaara-receipt-14 2026-10-15; #2789 closed 2026-06-30.
+3. Field names against the specifications: SLSA Provenance v1 (`runDetails.builder`, `buildDefinition.externalParameters` / `internalParameters` / `resolvedDependencies`), VSA (`verifier.id`, `timeVerified`, `policy`, `inputAttestations`, `verificationResult`, `slsaVersion`), in-toto `ResourceDescriptor`, EAT `profile`, XACML decisions. The links in §1 point to slsa.dev and OASIS; verify the versions.
+4. `draft-gilda-wimse-agent-audit-record`: confirm that it uses an in-toto Statement + DSSE + JCS (taken from the `chatgpt-01.txt` dialogue, not from the primary source).
+5. §6: before publication, either replace "specified and not yet run" with results and versions, or leave it as is and publish that way. The second is honest but weaker than the thread article.
 
-## Что сознательно не вошло
+## Deliberately left out
 
-Правила OpenAI для посредников; policy и routing evidence; wallet как продукт; XACML и RATS как предмет; SCITT-профили агентных receipts; эпистемическая запись; внутренние вызовы составного исполнителя к бэкендам.
+OpenAI's rules for intermediaries; policy and routing evidence; the wallet as a product; XACML and RATS as subjects; SCITT profiles for agent receipts; the epistemic record; a composite executor's internal calls to its backends.
