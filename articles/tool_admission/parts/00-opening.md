@@ -1,15 +1,17 @@
 # Tool Admission: What a Service May Believe About a Tool Record It Did Not Witness
 
-*This article is about the receiving side: what a service may restore from a tool record in a returned thread, and what it does when no evidence came with it.*
+*A practical look at tool calls in saved agent histories and the evidence a receiving service can use to check them.*
 
-Suppose you are building a service for an AI assistant that lets users resume work from a saved conversation. A user may have continued that conversation in a local agent before returning it to your service. Alongside messages, the history contains tool calls and their results. Which of those results can your assistant rely on when continuing the task?
+Suppose you are building a service for an AI assistant where users keep their conversation histories in storage they control and return them to the service when they want to continue. They may also work on the same thread with a local agent before bringing it back. How can your service trust the history it receives?
 
-The [earlier article](../../thread_admission/context_admission.md) used evidence issued by a proxy that observed model calls: the service can check that the returned content matches what the proxy received as input or delivered as output. For tool results, this leaves a gap. Evidence that a model received the text `Tests passed` does not establish that the tests produced it. A runtime or user could have changed the result before it reached the model, and the proxy would have witnessed the changed text.
+In the [previous article](../../thread_admission/context_admission.md), we used evidence from a proxy that observed model calls. The receiving service could check which responses the model returned and which messages were sent to it as user input. That gave the service a way to restore those parts of the conversation.
 
-This problem surfaced in the [MCP discussion on audit context for tool calls](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2817#issuecomment-5390870362). An implementer reported that a consumer had treated an outcome reported by the host in the same way as an outcome observed by the runtime. The distinction between how the records were obtained was lost when they were used.
+A thread also contains tool calls and their results. Suppose a record says the agent ran `python export.py`, the command exited with code `0`, and the output was `Wrote export.csv (128 rows).` The user now asks the assistant to continue working with that export.
 
-The MCP proposals identify two separate things a service might receive: a [signed statement of what was requested](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2787) and a [record of what the executing side decided and returned](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2828).
+The proxy's evidence can show what result was sent to the model. But the result could have changed before it reached the proxy. How can the service establish what the tool itself returned?
 
-A receiving service needs to establish who attests to the result, which call it belongs to, and whether it matches the result the model received. When evidence is missing, the service still needs a rule for retaining and using the record.
+A related issue came up in an [MCP discussion](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2817#issuecomment-5390870362). A developer described an audit tool that counted executions observed by its runtime together with executions reported by another program. The summary lost the distinction between what the runtime saw and what it was told.
 
-That decision is tool admission. The executor is the party that processed the tool call and returned the result. We will define its statement, the checks that link it to model evidence, and admission rules for records with different evidence coverage. These rules state what the service may accept as established. Its policy decides whether that is sufficient for the next action.
+MCP proposals describe records a service can use: a [signed statement of what was requested](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2787) and a [record of what the executing side decided and returned](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2828).
+
+We will examine how a receiving service can compare evidence from the model call and the tool executor: which call the result belongs to, what the executor reported and what the model received. When evidence is missing, the service still needs a rule for retaining and using the record. We call this decision tool admission. The executor is the party that processed the tool call and returned the result; the service's policy decides whether what has been established is sufficient for the next action.
