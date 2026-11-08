@@ -1,18 +1,24 @@
-## Granularity belongs to the issuer
+## From the tool result to the model
 
-A model statement discloses message text, function names, arguments and tool outputs as units. A tool statement discloses a result, and a result is not one thing. A mail tool returns a message with a sender, a subject, a body and attachments. A payment tool returns an identifier, an amount, a fee and a status. Who decides what can be disclosed independently?
+An MCP tool can return text and structured data in one result. For example:
 
-The executor does. It knows its domain; the profile does not. A mail server may issue the body as one disclosure or each paragraph as its own. A payment server may issue amount, fee and recipient separately so that a fee dispute can see the fee without the recipient. The profile fixes only how the subdivision is named: `result.sha256` and `result.length` commit to the whole, and `result.parts` carries the executor's own named disclosures, each a selectively disclosable claim, opaque to the profile and described by a schema the executor publishes under its `tool_id`.
+```json
+{
+  "content": [
+    {"type": "text", "text": "{\"temperature\":22.5}"}
+  ],
+  "structuredContent": {"temperature": 22.5}
+}
+```
 
-The reason to do this with selective disclosure rather than a signed blob is that one result has several readers with different entitlements.
+The executor signs a statement containing a hash of this complete result. The runtime might select the text block and send that text to the model:
 
-| Reader | What it needs from the record |
-|---|---|
-| The service continuing the task | the content the task needs |
-| An auditor | who called, which operation, when, with what outcome |
-| Another party in the process | one confirmed value: an amount, a status, an identifier |
-| A fee review | the fee and the parameters it was computed from |
+```text
+{"temperature":22.5}
+```
 
-Sending the auditor the whole email to establish that a call was made is over-disclosure. A signature over the whole object forces a choice between disclosing everything and designing verifiable parts by hand. SD-JWT gives the parts ready-made, with their own salts, held by the client and presented on request. The earlier article's open question, whether verifiers really need different parts or whether whole-record signing would do, has its first concrete case here, and the experiment section tests it rather than assuming it.
+The proxy's evidence covers the string sent to the model. To compare it with the result covered by the executor, the receiving service needs the full result and a rule for the conversion. In this example, the rule takes the text from the single `content` block. The service checks the full result against the executor's hash, applies the rule and compares its output with the string in the proxy's evidence. The executor's statement also covers `structuredContent`; this rule sends the text block to the model.
 
-What the executor can attest also depends on what it observes. For a payment, accepting the request, submitting the transaction and receiving its confirmation are three observations at three times, and an executor that only saw the first should issue a statement that says so. The executor signs what it saw. The profile's `outcome` field is deliberately coarse for this reason: `executed` means the executor's own operation completed, not that the world changed as intended.
+The service must know and accept the rule. A runtime can transform a result in many ways; a rule that produces a matching string still needs to be suitable for the service's policy. For example, the service must consider how a rule handles errors before accepting it. The same approach can cover truncation when the rule and the full result allow the service to reproduce the text shown to the model.
+
+Our experiment defines one such rule for an MCP result with a single text block. For a tool error, the rule adds an explicit error prefix to the text. It checks the complete signed result and repeats the conversion. Other result shapes and conversions need their own accepted rules.

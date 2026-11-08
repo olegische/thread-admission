@@ -1,7 +1,7 @@
 # Tool admission — article working directory
 
 - [Assembled draft v01 (EN)](tool_admission_v01.md)
-- `parts/` — one file per section, `00-`…`08-`, in build order
+- `parts/` — one file per section, `00-`…`09-`, in build order
 - `build.py` — assembly; `--check` verifies that the assembled file is up to date
 
 ```sh
@@ -11,9 +11,9 @@ python3 build.py --check
 
 ## Status of v01 (2026-10-26)
 
-Complete draft. Added: the "why" for the receiving side (§0), precedents for evidence and Temporal (§1), `source_class` instead of `epistemic_class`, the consumer of the class (§2), an example profile typed through `vct` (§6), counterexample 2 for different actors (§4), three distinctions (§7), standing / authority and lineage between agents (§8). Written from the problem, not from code: the experiment (§6) is specified and marked in the text as not run; no results are claimed. The tool statement schema in §6 and the two Python functions in §3 are a proposed profile; no reference implementation is published, and the text says so.
+Draft in progress. Sections 0–4 cover the receiving service, precedents, evidence, checks and possible runtime responses. Section 5 describes how to compare a signed MCP result with a transformed model input. Section 6 defines a proposed tool evidence profile; section 7 describes the experiment, which has not been run as a complete experiment.
 
-The digests in §3–§4 are real: computed with `rfc8785` + SHA-256 over the thread-admission fixtures (`fixtures/api-call.json`) and over a result variant with exit code 1.
+The argument digests in §3 were computed using `rfc8785` and SHA-256. The illustrative comparison code in §7 verifies the complete MCP result before applying an accepted conversion rule.
 
 ## Editorial norms
 
@@ -27,7 +27,7 @@ Tone and manner of presentation as in the first article: a concrete situation, t
 2. Dates and statuses: #2704 2026-05-09; SEP-2787 2026-05-25 → 2026-09-22; SEP-2817 2026-05-29, open; SEP-2828 2026-05-31 → 2026-07-18; draft-sirkkavaara-vaara-receipt-14 2026-10-15; #2789 closed 2026-06-30.
 3. Field names against the specifications: SLSA Provenance v1 (`runDetails.builder`, `buildDefinition.externalParameters` / `internalParameters` / `resolvedDependencies`), VSA (`verifier.id`, `timeVerified`, `policy`, `inputAttestations`, `verificationResult`, `slsaVersion`), in-toto `ResourceDescriptor`, EAT `profile`, XACML decisions. The links in §1 point to slsa.dev and OASIS; verify the versions.
 4. `draft-gilda-wimse-agent-audit-record`: confirm that it uses an in-toto Statement + DSSE + JCS (taken from the `chatgpt-01.txt` dialogue, not from the primary source).
-5. §6: before publication, either replace "specified and not yet run" with results and versions, or leave it as is and publish that way. The second is honest but weaker than the thread article.
+5. §7: before publication, report whether the experiment was run and include any results and versions.
 
 ## Deliberately left out
 

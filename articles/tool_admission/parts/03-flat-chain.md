@@ -13,7 +13,7 @@ Model received:       exit code 0, Wrote export.csv (128 rows).
 
 Both statements can pass signature verification: the executor signed the result it returned, and the proxy signed the result sent to the model. By comparing them, the service detects the mismatch.
 
-The service also compares the arguments requested by the model with those received by the executor. The issuers do not need to know about each other's statements: the service verifies each in its own format and compares the values they cover.
+The service also compares the arguments requested by the model with those received by the executor. Each issuer uses its own statement format; the service verifies both and compares the values they cover.
 
 ### Comparing arguments
 
@@ -35,10 +35,19 @@ jcs_sha256:   f272be5ff717e09cbabf10f946c667892bd94b0f5bbe36cac5e491de0eea642f
 
 The raw hash lets the service check the original string; the canonical hash lets it compare parsed objects despite formatting differences. Our profile requires both, so an executor using it must receive the original string. An executor that receives only a parsed object can issue evidence in another format; the service then uses a comparison supported by that evidence.
 
-Results also need a shared representation. If the executor hashes the result string sent to the model, the service can compare it with the string covered by model evidence. If the runtime transforms or truncates the result, the comparison needs to account for that transformation. We return to truncation in the admission rules.
+Results also need a shared representation. If the runtime transforms the executor's result before sending it to the model, the service needs to account for that transformation. Section 5 shows how it can repeat a known rule and compare the resulting string with the model evidence.
 
 ### Identifying the execution
 
-The service can use `call_id` to find statements to compare. Matching arguments and results show that the covered values agree. To establish that the statements concern the same execution, the service also needs a binding it accepts between the model's request and that execution. Two separate calls can have the same ID, arguments and result, and a runtime can relay an ID. Our hashes alone do not establish that binding. How to establish it remains open for this profile.
+In our proposed profile, the client sends the proxy's evidence with the tool call, disclosing the tool name and arguments needed for the check. The executor verifies the evidence, checks the requested tool and arguments, and records a reference to the proxy's signed evidence and `call_id` in its own statement. It also assigns an ID to the execution.
+
+```text
+Proxy evidence:   call-1 and python export.py disclosed from the model call
+Tool evidence:    reference to the proxy's evidence, call-1, execution exec-1
+```
+
+When the thread returns, the service verifies both statements, checks the reference and compares the covered values. The model-evidence issuer does not need to know about the tool statement. A similar link from an execution record to a request attestation was proposed in the [SEP-2817 discussion](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2817).
+
+The executor handles repeated requests for the same model call under an explicit retry rule, so it does not silently dispatch multiple executions for that call. The reference records the executor's account of the request it processed. The result comparison establishes what was shown to the model; it cannot trace the physical path taken by identical bytes through the client.
 
 The next section uses these checks to decide what the service can retain as history and how it can use the result.

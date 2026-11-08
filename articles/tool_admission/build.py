@@ -16,9 +16,10 @@ PARTS = (
     "03-flat-chain.md",
     "04-admission-rules.md",
     "05-granularity.md",
-    "06-experiment.md",
-    "07-limits.md",
-    "08-composition.md",
+    "06-tool-statement.md",
+    "07-experiment.md",
+    "08-limits.md",
+    "09-composition.md",
 )
 OUTPUT = ROOT / "tool_admission_v01.md"
 

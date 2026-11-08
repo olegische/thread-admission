@@ -1,6 +1,6 @@
 ## Where this fits
 
-**Inference admission is the base.** The earlier article's model-call evidence and this article's tool-call evidence are issued independently. A receiving service verifies each in its own format and compares the covered data where it can. The model-evidence profile from the earlier article does not need to move to the tool statement's `vct` type.
+**Inference admission is the base.** The earlier article's model-call evidence and this article's tool-call evidence use independent issuers and formats. The executor can refer to existing model evidence in its own statement; the model issuer does not need to issue a tool statement or use the tool statement's `vct` type. A receiving service verifies both and checks the reference and covered data.
 
 **Existing records can contribute evidence.** SEP-2787 describes a request attestation; SEP-2828 and its successor describe decisions and outcomes. Other proposals use in-toto statements for agent audit records. A receiving service can verify a supported format and use the claims it actually covers. Whether those claims identify an executor, a call, its arguments, result or source class depends on the record and issuer; missing claims cannot be assumed.
 
