@@ -22,6 +22,7 @@ def check_markdown_links():
                 continue
             source = Path(directory) / filename
             text = source.read_text(encoding="utf-8")
+            text = re.sub(r"(?ms)^ {0,3}(`{3,}|~{3,})[^\n]*\n.*?^ {0,3}\1[ \t]*(?:\n|$)", "", text)
             links = re.findall(r"\]\((?:<([^>\n]+)>|([^)\s]+))\)", text)
             links += re.findall(r"(?m)^ {0,3}\[[^]\n]+\]:\s*(?:<([^>\n]+)>|(\S+))", text)
             for angle, plain in links:
@@ -63,7 +64,7 @@ def blocks(part, language, parts=None):
 def definitions(source):
     result = {}
     for node in ast.parse(source).body:
-        if isinstance(node, ast.FunctionDef):
+        if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
             result[node.name] = ast.dump(node, include_attributes=False)
         if isinstance(node, ast.Assign):
             for target in node.targets:
@@ -73,10 +74,13 @@ def definitions(source):
 
 
 def check_tool_article():
-    """Tool admission: section 7 code, section 6 schema, section 3 digests, fixtures."""
-    published = definitions("\n".join(blocks("07-experiment.md", "python", TOOL_PARTS)))
+    """Tool admission: sections 7–8 code, section 6 schema, section 3 digests, fixtures."""
+    published = definitions("\n".join(
+        blocks("07-experiment.md", "python", TOOL_PARTS)
+        + blocks("08-admission.md", "python", TOOL_PARTS)
+    ))
     standalone = {}
-    for module in ("digests.py", "mcp.py", "model_calls.py", "tool_record.py"):
+    for module in ("digests.py", "mcp.py", "model_calls.py", "tool_evidence.py", "tool_record.py"):
         standalone.update(definitions((ROOT / "examples" / module).read_text()))
     for name, definition in published.items():
         if standalone.get(name) != definition:

@@ -1,7 +1,7 @@
 # Tool admission — article working directory
 
 - [Assembled draft v01 (EN)](tool_admission_v01.md)
-- `parts/` — one file per section, `00-`…`09-`, in build order
+- `parts/` — one file per section, `00-`…`10-`, in build order
 - `build.py` — assembly; `--check` verifies that the assembled file is up to date
 
 ```sh
@@ -11,11 +11,11 @@ python3 build.py --check
 
 ## Status of v01 (2026-11-08)
 
-Draft in progress. Sections 0–4 cover the receiving service, precedents, evidence, checks and possible runtime responses. Section 5 describes how to compare a signed MCP result with a transformed model input. Section 6 defines a proposed tool evidence profile; section 7 describes the executed example and its limits.
+Draft in progress. Sections 0–4 cover the receiving service, precedents, evidence, checks and possible runtime responses. Section 5 describes how to compare a signed MCP result with a transformed model input. Section 6 defines a proposed tool evidence profile; sections 7 and 8 describe the example during the conversation and when the thread returns.
 
-The argument digests in §3 were computed using `rfc8785` and SHA-256. The illustrative comparison code in §7 verifies the complete MCP result before applying an accepted conversion rule.
+The argument digests in §3 were computed using `rfc8785` and SHA-256. The comparison code in §8 verifies the complete MCP result before applying an accepted conversion rule.
 
-Companion code in the shared `examples/` package implements the fixture-based example. The §7 code block is checked against the modules. The run was executed on 2026-11-08; results, versions and limits are in [notes/executed-checks.md](notes/executed-checks.md).
+Companion code in the shared `examples/` package implements the fixture-based example. The code blocks in §§7–8 are checked against the modules. The run was executed on 2026-11-08; results, versions and limits are in [notes/executed-checks.md](notes/executed-checks.md).
 
 ## Editorial norms
 
@@ -29,7 +29,7 @@ Tone and manner of presentation as in the first article: a concrete situation, t
 2. Dates and statuses: #2704 2026-05-09; SEP-2787 2026-05-25 → 2026-09-22; SEP-2817 2026-05-29, open; SEP-2828 2026-05-31 → 2026-07-18; draft-sirkkavaara-vaara-receipt-14 2026-10-15; #2789 closed 2026-06-30.
 3. Field names against the specifications: SLSA Provenance v1 (`runDetails.builder`, `buildDefinition.externalParameters` / `internalParameters` / `resolvedDependencies`), VSA (`verifier.id`, `timeVerified`, `policy`, `inputAttestations`, `verificationResult`, `slsaVersion`), in-toto `ResourceDescriptor`, EAT `profile`, XACML decisions. The links in §1 point to slsa.dev and OASIS; verify the versions.
 4. `draft-gilda-wimse-agent-audit-record`: confirm that it uses an in-toto Statement + DSSE + JCS (taken from the `chatgpt-01.txt` dialogue, not from the primary source).
-5. §7: before publication, rerun the example and update [notes/executed-checks.md](notes/executed-checks.md) if results or versions change.
+5. §§7–8: before publication, rerun the example and update [notes/executed-checks.md](notes/executed-checks.md) if results or versions change.
 
 ## Deliberately left out
 

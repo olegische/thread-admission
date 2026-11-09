@@ -1,114 +1,77 @@
-## Running the profile
+## During the conversation
 
-The companion code runs the profile against an export call and a returned tool record. A mock proxy signs model-call fixtures using the first article's code; the executor and receiving service are Python modules in the repository. Each run generates temporary keys in memory.
+The example runs the conversation and the later return in one process. A mock proxy uses the first article's code to sign prepared model-call data.
 
-### The export call
+The proxy signs a model response requesting `run_command`. The client discloses that tool's name and arguments to the executor. The executor verifies the evidence, requires one disclosed function call and checks its name and arguments against the request. It runs the handler and signs a statement with the result and a reference to the proxy's signed JWT. In this example, the handler returns a prepared MCP result from `fixtures/tool/`.
 
-The proxy signs the model response that requests `run_command`. The client discloses the tool name and arguments to the executor. The executor verifies the presentation, requires exactly one disclosed function call and checks its name and arguments against the request. It runs the handler and signs a tool statement with the result and the reference to the proxy's signed JWT. In this example, the handler returns a prepared MCP result from `fixtures/tool/`.
+The runtime converts the result to the string in the next model-call fixture, which the proxy also signs. The client now has both kinds of evidence.
 
-The runtime converts that result to the string sent to the next model call. The mock proxy signs the next call, and the receiving service verifies the model and tool statements. For the matching fixtures, the checks pass and the service assigns the record **Restored**. The handler and proxy use fixtures; the example makes no model API call.
-
-The run checks four points:
-
-1. A tool result without tool evidence is indistinguishable from a substituted one, however valid the model evidence covering it.
-2. Comparing the covered arguments and results detects substitutions between the model call and the executor's statement.
-3. The sensor and prediction handlers return identical fixture data, with `observer` and `generator` classes respectively. A policy requiring an observation accepts the first and does not use the second as grounds.
-4. The receiver can repeat the accepted conversion of an MCP result and compare it with the string covered by model evidence.
-
-### Comparing covered values
-
-This example compares claims after each statement has been verified and its issuer accepted. It selects candidates by `call_id`, checks the arguments and verifies the full MCP result against the tool statement. It then repeats a rule accepted by the receiver: for a result with one text block, send that block's text to the model, adding an error prefix if `isError` is true. It compares the resulting string with the proxy's evidence. The rule does not support other result shapes.
+The executor in [`examples/tool_evidence.py`](../../../examples/tool_evidence.py) checks the request and keys its issued statements by the model-evidence digest and `call_id`:
 
 ```python
-from hashlib import sha256
-import json
-import rfc8785
+class Executor:
+    """A tool executor that verifies the model's request and signs its result.
 
+    `handlers` maps tool identifiers to functions of the parsed arguments
+    returning an MCP `CallToolResult`; `catalog` declares each tool's
+    `source_class`. Statements are keyed by the model evidence digest
+    and `call_id`: presenting the same evidence again returns the existing
+    statement. The store is a dictionary in memory.
+    """
 
-def argument_digests(raw_arguments):
-    parsed = json.loads(raw_arguments)
-    return {
-        "raw_sha256": sha256(raw_arguments.encode("utf-8")).hexdigest(),
-        "jcs_sha256": sha256(rfc8785.dumps(parsed)).hexdigest(),
-    }
+    def __init__(self, issuer, key, catalog, handlers, model_key, model_schema, tool_schema):
+        self.issuer, self.key = issuer, key
+        self.catalog, self.handlers = catalog, handlers
+        self.model_key, self.model_schema, self.tool_schema = model_key, model_schema, tool_schema
+        self.executions = {}
+        self.dispatched = 0
 
-
-def commitment(value):
-    """Digest and length of a JSON value in its canonical (JCS) encoding."""
-    encoded = rfc8785.dumps(value)
-    return {"sha256": sha256(encoded).hexdigest(), "length": len(encoded)}
-
-
-def find_call_item(evidence, group, item_type, call_id):
-    """The one item of `item_type` for `call_id` in a group of claims, else None."""
-    if evidence is None or call_id is None:
-        return None
-    matches = [item for item in evidence.get(group, [])
-               if item.get("type") == item_type and item.get("call_id") == call_id]
-    return matches[0] if len(matches) == 1 else None
-
-
-def model_input_for_mcp_result(result):
-    """Convert one text block, preserving the MCP tool error flag."""
-    if not isinstance(result, dict):
-        return None
-    is_error = result.get("isError", False)
-    if type(is_error) is not bool:
-        return None
-    content = result.get("content")
-    if not isinstance(content, list) or len(content) != 1:
-        return None
-    block = content[0]
-    if not isinstance(block, dict) or block.get("type") != "text":
-        return None
-    value = block.get("text")
-    if not isinstance(value, str):
-        return None
-    return "MCP tool error: " + value if is_error else value
-
-
-def link_checks(previous_model, tool, next_model, tool_result):
-    """Compare verified claims; None means the check could not be made."""
-    call_id = tool.get("call_id")
-    call = find_call_item(previous_model, "response", "function_call", call_id)
-    shown = find_call_item(next_model, "request", "function_call_output", call_id)
-
-    def compare(value, expected, digest):
-        try:
-            return digest(value) == expected if value is not None and expected is not None else None
-        except (TypeError, ValueError):
-            return None
-
-    verified_result = compare(tool_result, tool.get("result"), commitment)
-    expected = model_input_for_mcp_result(tool_result) if verified_result else None
-    shown_output = shown.get("output") if shown else None
-    return {
-        "arguments": compare(call.get("arguments") if call else None,
-                             tool.get("arguments"), argument_digests),
-        "tool_result": verified_result,
-        "result": (shown_output == expected
-                   if isinstance(shown_output, str) and expected is not None
-                   else None),
-    }
+    def call(self, tool_name, raw_arguments, model_evidence, subject, response_id):
+        """Process one tools/call request; returns (result, tool statement issuance)."""
+        # 1. The model evidence must verify under the proxy's key, for this subject
+        #    and response. Only the claims the client disclosed come back.
+        claims = verify_selected(model_evidence, self.model_key, subject, response_id, self.model_schema)
+        # 2. The client must have disclosed exactly one function call, and the request
+        #    must repeat its name and raw argument string byte for byte.
+        disclosed = [item for item in claims["response"]
+                     if item.get("type") == "function_call" and "name" in item]
+        if len(disclosed) != 1:
+            raise ValueError("Expected exactly one disclosed function call")
+        call = disclosed[0]
+        if call["name"] != tool_name or call["arguments"] != raw_arguments:
+            raise ValueError("Request differs from the disclosed model call")
+        if tool_name not in self.catalog:
+            raise ValueError("Unknown tool")
+        # 3. Replay rule: one execution per (digest of the signed model JWT, call_id).
+        #    The same evidence presented again returns the statement already issued.
+        key = (sdjwt.signed_jwt_sha256(model_evidence), call["call_id"])
+        if key not in self.executions:
+            result = self.handlers[tool_name](json.loads(raw_arguments))
+            self.dispatched += 1
+            tool = self.catalog[tool_name]
+            # 4. The statement covers what the executor received and returned:
+            #    the reference to the model evidence, both argument digests and the
+            #    digest and length of the full MCP result. The call_id is the model's.
+            statement = {
+                "vct": VCT, "iss": self.issuer, "sub": subject, "iat": int(time()),
+                "call_id": call["call_id"], "tool_id": tool["tool_id"],
+                "source_class": tool["source_class"],
+                "outcome": "errored" if result.get("isError") else "executed",
+                "model_call": {"issuer_jwt_sha256": key[0]},
+                "arguments": argument_digests(raw_arguments),
+                "result": commitment(result),
+            }
+            self.executions[key] = (result, issue_tool_statement(statement, self.key, self.tool_schema))
+        return self.executions[key]
 ```
 
-Each check returns `True` for a match, `False` for a mismatch and `None` when the data is missing, the candidate is ambiguous or the conversion rule does not apply. The receiver selects the rule under its own policy; the example does not accept executable rules from the returned thread. The function does not verify signatures or establish that the statements concern the same execution. Those checks require additional inputs and rules.
+The example also checks how the executor and client handle incorrect or repeated requests:
 
-### Checks and results
+- **Changed arguments:** the executor rejects a request whose arguments differ from the model's signed call.
+- **Changed tool:** the executor rejects a request naming a different tool.
+- **Missing evidence:** the executor rejects the request without model evidence.
+- **Unknown key:** the executor rejects model evidence signed by a key it does not accept.
+- **Unknown `call_id`:** the client cannot prepare a presentation for a call absent from the signed model response.
+- **Repeated evidence:** the same executor receives the evidence twice, runs the handler once and returns the same statement.
 
-The code runs the matching case and 30 rejection and boundary checks. The [results note](../notes/executed-checks.md) records the run and its versions. Among the cases:
-
-- **Changed result.** The executor signs a database error and the proxy signs a success message shown to the model. Both signatures verify; the result comparison fails, and the service returns Shown with a `result` discrepancy.
-- **Changed request.** The executor rejects a tool name or arguments that differ from the disclosed model call. The receiver detects a signed statement over different arguments.
-- **Missing or different model evidence.** The executor rejects absent evidence or evidence signed by an unknown key. A tool statement that references a different model call fails the reference check. An unlinked statement is Produced without model evidence and Shown when model evidence covers the result.
-- **Replayed request.** Presenting the same model evidence twice to the same executor instance produces one dispatch and returns the same statement.
-- **Result and conversion.** Changing the full result fails its commitment check. Changed model input fails the result comparison. An unsupported two-block result leaves that comparison unavailable.
-- **Missing evidence.** A record without a tool statement is Shown when model evidence covers it; a record without either kind of evidence is Supplied.
-- **Source class.** Both the simulated sensor reading and prediction are Restored. The example policy accepts the declared `observer` class as grounds for an observation and does not accept `generator` for that purpose.
-- **Statement validation.** Removing `source_class` or `result`, using an unknown class, outcome or `vct`, adding an extra claim, withholding the result or changing a disclosure is rejected. JSON Schema requires `source_class`; the example does not mark it for selective disclosure.
-
-### Limits of the example
-
-The proxy signs fixtures, and the executor and receiving service run in process. The JSON-RPC wrapper and `_meta` field illustrated in section 6 are not exercised. The record of issued statements is held in memory and checked within one process. An executor operating across restarts or in parallel must durably store the model-evidence digest and `call_id` and coordinate access. If a failure occurs between execution and recording, the executor may not know whether the operation ran; it must retain that uncertainty rather than execute again.
-
-The verifier checks `vct` against a constant; no Type Metadata document is published for this example. The `sd-jwt` library limitation described in the first article remains: version `0.10.4` accepts unreferenced disclosures. The run does not exercise a real runtime's thread export and re-import.
+After the conversation, the client can keep the thread with the model and tool evidence. The example passes the record in memory to simulate its return.

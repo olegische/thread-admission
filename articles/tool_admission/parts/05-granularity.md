@@ -21,4 +21,4 @@ The proxy's evidence covers the string sent to the model. To compare it with the
 
 The service must know and accept the rule. A runtime can transform a result in many ways; a rule that produces a matching string still needs to be suitable for the service's policy. For example, the service must consider how a rule handles errors before accepting it. The same approach can cover truncation when the rule and the full result allow the service to reproduce the text shown to the model.
 
-The runnable example in section 7 uses this rule for an MCP result with one text block. It verifies the full result and compares the converted text with the proxy's evidence. Other result shapes and conversions need their own accepted rules.
+The runnable example in sections 7 and 8 uses this rule for an MCP result with one text block. It verifies the full result and compares the converted text with the proxy's evidence. Other result shapes and conversions need their own accepted rules.

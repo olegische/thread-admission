@@ -1,8 +1,11 @@
-"""Run the tool admission example: one export call, then the rejection table.
+"""Run the tool admission example in two phases: the conversation, then the return.
 
-Model calls are fixtures signed by a mock proxy with the first article's
-`issue_call`; the executor and the receiving service are the modules this
-file imports. Keys are ephemeral and in memory. No model API is called.
+During the conversation the proxy signs model calls and the executor signs
+its statement; nothing is admitted yet. When the thread returns, the client
+presents the record and the receiving service assigns a status. Both phases
+run in one process here: the proxy is a mock that signs fixtures with the
+first article's `issue_call`, the record is passed as a dictionary and keys
+are ephemeral.
 """
 from copy import deepcopy
 
@@ -43,12 +46,6 @@ def main():
     proxy_public = JWK.from_json(proxy_key.export_public())
     executor_key = JWK.generate(kty="EC", crv="P-256")
     other_key = JWK.generate(kty="EC", crv="P-256")
-    config = {
-        "model_key": proxy_public, "subject": subject,
-        "previous_response_id": call_1["response_id"], "next_response_id": call_2["response_id"],
-        "tool_issuers": {EXECUTOR: JWK.from_json(executor_key.export_public())},
-        "model_schema": model_schema, "tool_schema": tool_schema,
-    }
     reading = {"content": [{"type": "text", "text": "{\"temperature\":22.5}"}],
                "structuredContent": {"temperature": 22.5}}
     handlers = {
@@ -56,6 +53,7 @@ def main():
         "read_sensor": lambda args: deepcopy(reading),
         "predict_temperature": lambda args: deepcopy(reading),
     }
+    rejected = 0
 
     def executor(handler_map=handlers):
         return Executor(EXECUTOR, executor_key, catalog, handler_map, proxy_public, model_schema, tool_schema)
@@ -63,43 +61,69 @@ def main():
     def model_call(call, key=proxy_key):
         return issue_call(call["input"], call["output"], key, subject, call["response_id"])
 
-    def reissue(claims, key=executor_key):
-        """A statement with the same claims under another key, or changed claims."""
-        return present_tool_statement(issue_tool_statement(claims, key, tool_schema))
+    def refused(action, message):
+        nonlocal rejected
+        rejects(action, message)
+        rejected += 1
 
-    # 1. The proxy signs the model call; the client discloses only the tool call.
+    # ---- Phase 1: during the conversation ------------------------------------
+
+    # The proxy signs the model call; the client discloses only the tool call.
     issuance_1 = model_call(call_1)
     request_evidence = present_function_call(issuance_1, call_id)
     require(request_evidence.count("~") == 3, "Expected exactly two disclosures for the executor")
 
-    # 2. The executor verifies the request, runs the tool and signs its result.
+    # The executor verifies the request, runs the tool and signs its result.
     result, tool_issuance = executor().call(tool_name, raw_arguments, request_evidence, subject, call_1["response_id"])
     require(result == success, "Executor returned an unexpected result")
-    statement = verify_tool_statement(present_tool_statement(tool_issuance), config["tool_issuers"], tool_schema)
 
-    # 3. The runtime converts the result; the proxy signs the next call.
+    # The runtime converts the result; the proxy signs the next call.
     require(model_input_for_mcp_result(result) == call_2["input"][2]["output"],
             "Fixture output differs from the accepted conversion")
     next_evidence = present_items(model_call(call_2), for_receiver)
+    print("PASS: model request disclosed selectively; executor verified, executed and signed")
 
-    # 4. The thread returns with all evidence; the service admits the record.
+    # What the executor refuses, before anything is executed.
+    refused(lambda: executor().call(tool_name, '{"cmd":"rm -rf /","workdir":"/workspace"}',
+                                    request_evidence, subject, call_1["response_id"]),
+            "Executor accepted changed arguments")
+    refused(lambda: executor().call("read_sensor", raw_arguments, request_evidence, subject, call_1["response_id"]),
+            "Executor accepted a changed tool name")
+    refused(lambda: executor().call(tool_name, raw_arguments, "", subject, call_1["response_id"]),
+            "Executor ran without model evidence")
+    forged = present_function_call(model_call(call_1, other_key), call_id)
+    refused(lambda: executor().call(tool_name, raw_arguments, forged, subject, call_1["response_id"]),
+            "Executor accepted evidence under an unknown key")
+    refused(lambda: present_function_call(issuance_1, "call-2"), "Presented a call that does not exist")
+
+    # The same model evidence replayed to the same executor: one dispatch, the same statement.
+    repeat = executor()
+    first = repeat.call(tool_name, raw_arguments, request_evidence, subject, call_1["response_id"])
+    second = repeat.call(tool_name, raw_arguments, request_evidence, subject, call_1["response_id"])
+    require(first == second and repeat.dispatched == 1, "Replayed request dispatched twice")
+    rejected += 1
+    print(f"PASS: {rejected} requests refused by the executor or the client's presentation")
+
+    # ---- The thread leaves with both kinds of evidence; the client keeps them. ----
+
+    # ---- Phase 2: when the thread returns ------------------------------------
+
+    config = {
+        "model_key": proxy_public, "subject": subject,
+        "previous_response_id": call_1["response_id"], "next_response_id": call_2["response_id"],
+        "tool_issuers": {EXECUTOR: JWK.from_json(executor_key.export_public())},
+        "model_schema": model_schema, "tool_schema": tool_schema,
+    }
+
     def package(previous=request_evidence, nxt=next_evidence, tool=None, tool_result=result):
+        """The record the client presents: both model calls, the statement and the full result."""
         return {"call_id": call_id, "previous_model": previous, "next_model": nxt,
                 "tool_statement": present_tool_statement(tool_issuance) if tool is None else tool,
                 "tool_result": tool_result}
 
-    verdict = admit_tool_record(package(), config)
-    require(verdict["status"] == "Restored" and not verdict["rejected"], f"Expected Restored: {verdict}")
-    require(verdict["tool"]["source_class"] == "computation", "Declared class not carried")
-    print("PASS: model request disclosed selectively; executor verified, executed and signed; record Restored")
-
-    digests = argument_digests(raw_arguments)
-    require(digests["raw_sha256"] == digests["jcs_sha256"], "Canonical fixture arguments differ")
-    require(argument_digests('{ "cmd": "python export.py", "workdir": "/workspace" }')["jcs_sha256"]
-            == digests["jcs_sha256"], "JCS digest changed with whitespace")
-    print("PASS: raw and canonical argument digests as in section 3")
-
-    rejected = 0
+    def reissue(claims, key=executor_key):
+        """A statement with the same claims under another key, or changed claims."""
+        return present_tool_statement(issue_tool_statement(claims, key, tool_schema))
 
     def expect(label, verdict, status, *failed):
         nonlocal rejected
@@ -107,10 +131,17 @@ def main():
                 f"{label}: {verdict['status']} {verdict['discrepancy']} {verdict['rejected']}")
         rejected += 1
 
-    def refused(action, message):
-        nonlocal rejected
-        rejects(action, message)
-        rejected += 1
+    statement = verify_tool_statement(present_tool_statement(tool_issuance), config["tool_issuers"], tool_schema)
+    verdict = admit_tool_record(package(), config)
+    require(verdict["status"] == "Restored" and not verdict["rejected"], f"Expected Restored: {verdict}")
+    require(verdict["tool"]["source_class"] == "computation", "Declared class not carried")
+    print("PASS: the returned record verified and linked; status Restored")
+
+    digests = argument_digests(raw_arguments)
+    require(digests["raw_sha256"] == digests["jcs_sha256"], "Canonical fixture arguments differ")
+    require(argument_digests('{ "cmd": "python export.py", "workdir": "/workspace" }')["jcs_sha256"]
+            == digests["jcs_sha256"], "JCS digest changed with whitespace")
+    print("PASS: raw and canonical argument digests as in section 3")
 
     # Result rewritten from exit 1 to exit 0 before the model saw it.
     error_result, error_issuance = executor({**handlers, "run_command": lambda args: deepcopy(failure)}).call(
@@ -123,13 +154,7 @@ def main():
     require(verdict["checks"]["tool_result"] is True and not verdict["rejected"], "Signatures should pass")
     expect("rewritten result", verdict, "Shown", "result")
 
-    # Arguments: the executor refuses a request that differs from the disclosed call;
-    # the receiver detects a statement over different arguments.
-    refused(lambda: executor().call(tool_name, '{"cmd":"rm -rf /","workdir":"/workspace"}',
-                                    request_evidence, subject, call_1["response_id"]),
-            "Executor accepted changed arguments")
-    refused(lambda: executor().call("read_sensor", raw_arguments, request_evidence, subject, call_1["response_id"]),
-            "Executor accepted a changed tool name")
+    # A statement over different arguments.
     altered = {**statement, "arguments": argument_digests('{"cmd":"python other.py","workdir":"/workspace"}')}
     expect("changed arguments", admit_tool_record(package(tool=reissue(altered)), config), "Shown", "arguments")
 
@@ -140,25 +165,13 @@ def main():
     misreferenced["model_call"]["issuer_jwt_sha256"] = signed_jwt_sha256(other_evidence)
     expect("wrong reference", admit_tool_record(package(tool=reissue(misreferenced)), config), "Shown", "reference")
 
-    # Model evidence missing or failing: the executor issues no linked statement.
-    refused(lambda: executor().call(tool_name, raw_arguments, "", subject, call_1["response_id"]),
-            "Executor ran without model evidence")
-    forged = present_function_call(model_call(call_1, other_key), call_id)
-    refused(lambda: executor().call(tool_name, raw_arguments, forged, subject, call_1["response_id"]),
-            "Executor accepted evidence under an unknown key")
+    # Model link missing or not verifiable.
     unlinked = {name: value for name, value in statement.items() if name != "model_call"}
     expect("unlinked, no model evidence", admit_tool_record(
         package(previous=None, nxt=None, tool=reissue(unlinked)), config), "Produced")
     expect("unlinked, model evidence present", admit_tool_record(
         package(tool=reissue(unlinked)), config), "Shown", "reference")
     expect("forged model evidence", admit_tool_record(package(previous=forged), config), "Shown", "reference")
-
-    # Same model evidence replayed to the same executor: one dispatch, same statement.
-    repeat = executor()
-    first = repeat.call(tool_name, raw_arguments, request_evidence, subject, call_1["response_id"])
-    second = repeat.call(tool_name, raw_arguments, request_evidence, subject, call_1["response_id"])
-    require(first == second and repeat.dispatched == 1, "Replayed request dispatched twice")
-    rejected += 1
 
     # Tool statement from a different call_id.
     other_call = deepcopy(call_1)
@@ -196,7 +209,7 @@ def main():
     rejected += 1
 
     # No tool statement at all; no evidence at all.
-    expect("no tool statement", admit_tool_record(package(tool="", tool_result=None), config), "Shown")
+    expect("no tool statement", admit_tool_record(package(tool=""), config), "Shown")
     expect("no evidence", admit_tool_record(package(previous=None, nxt=None, tool="", tool_result=None), config),
            "Supplied")
 
@@ -241,7 +254,6 @@ def main():
     head, disclosure, rest = present_tool_statement(tool_issuance).split("~", 2)
     refused(lambda: verify_tool_statement("~".join([head, disclosure[:-2] + "AA", rest]),
                                           config["tool_issuers"], tool_schema), "Accepted tampered disclosure")
-    refused(lambda: present_function_call(issuance_1, "call-2"), "Presented a call that does not exist")
     print(f"PASS: {rejected} rejection cases from the article's table")
     print("LIMIT: mock proxy, in-process executor and in-memory record of issued statements; no runtime export or re-import")
 

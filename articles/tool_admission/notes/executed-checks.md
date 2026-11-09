@@ -20,11 +20,11 @@ both digests, raw and canonical, against the executor's statement.
 | `examples/mcp.py` | The accepted conversion of an MCP result into the model's input. |
 | `examples/tool_evidence.py` | The executor's SD-JWT statement under `typ: dc+sd-jwt` and the `tool-call/v1` type; an `Executor` that verifies the request, dispatches once per (reference, `call_id`) and signs the result. |
 | `examples/tool_record.py` | `link_checks`, `admission_status` (section 4) and `admit_tool_record`, the receiving service's path from presentations to a status. |
-| `examples/run_tool.py` | The export call end to end, then the rejection table. |
+| `examples/run_tool.py` | Phase 1, the conversation: signing and the executor's refusals. Phase 2, the return: admission of the record and the receiver's verdicts. |
 | `schemas/tool-call.schema.json` | The section 6 schema. |
 | `fixtures/tool/` | The model call that requested `run_command`, the full MCP result for success and for the database error, the next model call that received the converted result, and the tool catalog with `source_class`. |
 
-`scripts/check.py` keeps the section 7 functions identical to the modules, the schema identical to section 6, and recomputes the two argument
+`scripts/check.py` keeps the code in sections 7 and 8 identical to the modules, the schema identical to section 6, and recomputes the two argument
 digests printed in section 3 from the fixture string.
 
 ## Fixtures
@@ -66,7 +66,7 @@ Rejection cases, 30 in all, each with its expected outcome fixed before the run:
 - The same model evidence and `call_id` submitted twice dispatches once and returns the same execution.
 - A statement from a different `call_id` leaves the record Shown.
 - Changed full result fails the commitment check; shown text that differs from the conversion fails the result comparison; a two-block result makes the comparison `None` and the record is not Restored.
-- A statement under a key the service does not accept is rejected. A second accepted issuer signing the same digests verifies as a separate statement with its own execution ID.
+- A statement under a key the service does not accept is rejected. A second accepted issuer signing the same digests verifies as a separate statement identified by its issuer.
 - No tool statement: Shown. No evidence: Supplied.
 - A sensor tool and a prediction tool return identical bytes; both records are Restored; a policy requiring an observation accepts the sensor's `observer` class and not the `generator` class.
 - Removing `source_class` or `result`, an unknown `source_class` or `outcome`, an extra claim, a future `iat`, an unknown `vct`, a presentation withholding `result`, and a tampered disclosure are all rejected.

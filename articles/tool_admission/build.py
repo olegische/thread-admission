@@ -18,8 +18,9 @@ PARTS = (
     "05-granularity.md",
     "06-tool-statement.md",
     "07-experiment.md",
-    "08-limits.md",
-    "09-composition.md",
+    "08-admission.md",
+    "09-limits.md",
+    "10-composition.md",
 )
 OUTPUT = ROOT / "tool_admission_v01.md"
 
@@ -33,7 +34,15 @@ def rebase_links(text):
         path = posixpath.normpath(posixpath.join("parts", target.path))
         return "](" + urlunsplit(("", "", path, target.query, target.fragment)) + ")"
 
-    return re.sub(r"\]\(([^)\s]+)\)", replace, text)
+    fenced_code = re.compile(r"(?ms)^ {0,3}(`{3,}|~{3,})[^\n]*\n.*?^ {0,3}\1[ \t]*(?:\n|$)")
+    chunks = []
+    cursor = 0
+    for match in fenced_code.finditer(text):
+        chunks.append(re.sub(r"\]\(([^)\s]+)\)", replace, text[cursor:match.start()]))
+        chunks.append(match.group())
+        cursor = match.end()
+    chunks.append(re.sub(r"\]\(([^)\s]+)\)", replace, text[cursor:]))
+    return "".join(chunks)
 
 
 def word_count(text):

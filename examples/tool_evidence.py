@@ -49,7 +49,11 @@ class Executor:
 
     def call(self, tool_name, raw_arguments, model_evidence, subject, response_id):
         """Process one tools/call request; returns (result, tool statement issuance)."""
+        # 1. The model evidence must verify under the proxy's key, for this subject
+        #    and response. Only the claims the client disclosed come back.
         claims = verify_selected(model_evidence, self.model_key, subject, response_id, self.model_schema)
+        # 2. The client must have disclosed exactly one function call, and the request
+        #    must repeat its name and raw argument string byte for byte.
         disclosed = [item for item in claims["response"]
                      if item.get("type") == "function_call" and "name" in item]
         if len(disclosed) != 1:
@@ -59,11 +63,16 @@ class Executor:
             raise ValueError("Request differs from the disclosed model call")
         if tool_name not in self.catalog:
             raise ValueError("Unknown tool")
+        # 3. Replay rule: one execution per (digest of the signed model JWT, call_id).
+        #    The same evidence presented again returns the statement already issued.
         key = (sdjwt.signed_jwt_sha256(model_evidence), call["call_id"])
         if key not in self.executions:
             result = self.handlers[tool_name](json.loads(raw_arguments))
             self.dispatched += 1
             tool = self.catalog[tool_name]
+            # 4. The statement covers what the executor received and returned:
+            #    the reference to the model evidence, both argument digests and the
+            #    digest and length of the full MCP result. The call_id is the model's.
             statement = {
                 "vct": VCT, "iss": self.issuer, "sub": subject, "iat": int(time()),
                 "call_id": call["call_id"], "tool_id": tool["tool_id"],
