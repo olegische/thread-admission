@@ -1,17 +1,59 @@
 ## When the thread returns
 
-The client presents the previous model-call evidence, the tool statement, the full tool result and the next model-call evidence. The example collects these in `package`. The receiving service uses its own `config`, containing accepted issuer keys and schemas, to verify the statements, check their reference and compare the covered data. For the matching fixtures, the service assigns the record **Restored**.
-
-The run checks four points:
-
-1. A tool result without tool evidence is indistinguishable from a substituted one, however valid the model evidence covering it.
-2. Comparing the covered arguments and results detects substitutions between the model call and the executor's statement.
-3. The sensor and prediction handlers return identical fixture data, with `observer` and `generator` classes respectively. A policy requiring an observation accepts the first and does not use the second as grounds.
-4. The receiver can repeat the accepted conversion of an MCP result and compare it with the string covered by model evidence.
+When the user returns a saved thread to continue working, the client sends it to the service with its evidence. The service checks each tool call as a separate record. For one call, it needs the tool statement and full result, along with evidence for the model call that requested the tool and the model call that received its result. The example collects these in `record`. The receiving service uses its own `config`, containing accepted issuer keys and schemas, to verify the statements, check their reference and compare the covered data. For the matching fixtures, the service assigns the record **Restored**.
 
 ### Comparing covered values
 
-This example compares claims after each statement has been verified and its issuer accepted. It selects candidates by `call_id`, checks the arguments and verifies the full MCP result against the tool statement. It then repeats a rule accepted by the receiver: for a result with one text block, send that block's text to the model, adding an error prefix if `isError` is true. It compares the resulting string with the proxy's evidence. The rule does not support other result shapes.
+For each returned tool record, the service decides what it can retain and assigns one of the statuses from section 4. It verifies each presentation against an accepted issuer's key, checks that the tool statement references the model evidence presented with the record, compares the arguments and results covered by the statements, and applies the admission rules. `admit_tool_record` takes the record and the service's configuration and returns a status, discrepancies and any verification errors.
+
+```python
+def admit_tool_record(record, config):
+    """Admit one tool record.
+
+    record:  previous_model, next_model, tool_statement (SD-JWT presentations
+             or None), tool_result (full MCP result or None) and call_id.
+    config:  model_key, subject, previous_response_id, next_response_id,
+             tool_issuers, model_schema, tool_schema.
+    """
+    rejected = {}
+
+    # 1. Verify each presentation the client returned. A statement that fails is
+    #    recorded and treated as absent; the record is not rejected for it.
+    def accepted(name, verify):
+        if not record.get(name):
+            return None
+        try:
+            return verify(record[name])
+        except ValueError as error:
+            rejected[name] = str(error)
+            return None
+
+    previous = accepted("previous_model", lambda p: verify_selected(
+        p, config["model_key"], config["subject"], config["previous_response_id"], config["model_schema"]))
+    next_model = accepted("next_model", lambda p: verify_selected(
+        p, config["model_key"], config["subject"], config["next_response_id"], config["model_schema"]))
+    tool = accepted("tool_statement", lambda p: verify_tool_statement(
+        p, config["tool_issuers"], config["tool_schema"]))
+
+    # 2. Model evidence covers the result only if the next call's verified claims
+    #    include the output shown to the model for this call_id.
+    call_id = record["call_id"]
+    shown = find_call_item(next_model, "request", "function_call_output", call_id)
+    model_shown = shown is not None and "output" in shown
+    # 3. The reference: the statement names this call_id and the digest of the
+    #    signed model JWT the client returned, computed here, not taken on trust.
+    reference_ok = (tool is not None and previous is not None and tool["call_id"] == call_id
+                    and tool.get("model_call", {}).get("issuer_jwt_sha256")
+                    == signed_jwt_sha256(record["previous_model"]))
+    # 4. Compare the covered values, then apply the section 4 rules to get a status.
+    checks = link_checks(previous, tool or {"call_id": call_id}, next_model, record.get("tool_result"))
+    decision = admission_status(model_shown, tool is not None, reference_ok, checks)
+    return {**decision, "checks": checks, "reference": reference_ok, "rejected": rejected, "tool": tool}
+```
+
+A presentation that fails verification is recorded as rejected and treated as absent; the service assigns the record a status based on the evidence that remains.
+
+The comparison has three parts: the arguments requested by the model against the two digests from section 3; the full MCP result against its digest and length from section 6; and the string shown to the model against the result transformed by the rule from section 5. `link_checks` performs these comparisons. The helper `argument_digests` computes the two argument digests, and `commitment` computes a result's digest and length. `model_input_for_mcp_result` applies the conversion rule: it takes the text from one text block and adds an error prefix if `isError` is true. The rule is designed for one text block. If the result contains, for example, multiple blocks or an image, the comparison requires another conversion rule. The service selects rules under its own policy; the example does not execute rules supplied with the returned thread. `find_call_item` selects one item by `call_id` and returns `None` if there is no match or more than one.
 
 ```python
 from hashlib import sha256
@@ -63,6 +105,8 @@ def model_input_for_mcp_result(result):
 
 def link_checks(previous_model, tool, next_model, tool_result):
     """Compare verified claims; None means the check could not be made."""
+    # 1. Select by call_id: the model's request in the previous call and the output
+    #    shown to the model in the next call. An absent or ambiguous item gives None.
     call_id = tool.get("call_id")
     call = find_call_item(previous_model, "response", "function_call", call_id)
     shown = find_call_item(next_model, "request", "function_call_output", call_id)
@@ -73,9 +117,14 @@ def link_checks(previous_model, tool, next_model, tool_result):
         except (TypeError, ValueError):
             return None
 
+    # 2. The full MCP result the client returned must match the digest and length
+    #    the executor signed. Only then is the conversion rule applied to it.
     verified_result = compare(tool_result, tool.get("result"), commitment)
     expected = model_input_for_mcp_result(tool_result) if verified_result else None
     shown_output = shown.get("output") if shown else None
+    # 3. Three links: the model's raw argument string against both digests the
+    #    executor signed; the returned result against the statement; the string
+    #    shown to the model against the accepted conversion of that result.
     return {
         "arguments": compare(call.get("arguments") if call else None,
                              tool.get("arguments"), argument_digests),
@@ -86,7 +135,9 @@ def link_checks(previous_model, tool, next_model, tool_result):
     }
 ```
 
-Each check returns `True` for a match, `False` for a mismatch and `None` when the data is missing, the candidate is ambiguous or the conversion rule does not apply. The receiver selects the rule under its own policy; the example does not accept executable rules from the returned thread. The function does not verify signatures or establish that the statements concern the same execution. Those checks require additional inputs and rules.
+Each check returns `True` for a match, `False` for a mismatch and `None` when the data is missing, the `call_id` matches more than one item or the conversion rule does not apply. Restored requires every check to return `True`.
+
+For the matching fixtures, the reference and all three comparisons pass, and the service returns Restored. The cases below change the evidence or data and show how the checks and status respond.
 
 ### Checks and results
 
@@ -98,11 +149,13 @@ The code runs the matching case and 30 rejection and boundary checks: six before
 - **Different call or issuer.** A statement for another `call_id` is not linked. An unknown issuer's statement is rejected; a second accepted issuer's statement is checked separately.
 - **Result and conversion.** Changing the full result fails its commitment check. Changed model input fails the result comparison. An unsupported two-block result leaves that comparison unavailable.
 - **Missing evidence.** A record without a tool statement is Shown when model evidence covers it; a record without either kind of evidence is Supplied.
-- **Source class.** Both the simulated sensor reading and prediction are Restored. The example policy accepts the declared `observer` class as grounds for an observation and does not accept `generator` for that purpose.
-- **Statement validation.** Removing `source_class` or `result`, using an unknown class, outcome or `vct`, adding an extra claim, withholding the result or changing a disclosure is rejected. JSON Schema requires `source_class`; the example does not mark it for selective disclosure.
+- **Source class.** The `run_command` and `predict_command_output` fixtures return the same `Wrote export.csv (128 rows).` text; the first declares `computation` and the second `generator`. Both records are Restored. A policy requiring evidence that the export was executed accepts the first claim and does not accept the second as grounds, as in the `Tests passed` example in section 1.
+- **Statement validation.** Removing `source_class` or `result`, using an unknown class, outcome or `vct`, adding an extra claim, setting `iat` in the future, withholding the result or changing a disclosure is rejected. JSON Schema requires `source_class`; the example does not mark it for selective disclosure.
+
+The run shows four things. Without a tool statement, a result cannot be told from a substituted one, however valid the model evidence that covers it. Comparing the values covered by the two statements detects a substitution between the model call and the executor. The receiver can repeat the conversion rule it accepts and compare the resulting string with the model evidence. Restored answers what the model was shown, not whether the result may serve as grounds; that question needs the source class and the receiver's policy.
 
 ### Limits of the example
 
-The proxy signs fixtures, and the executor and receiving service run in process. The JSON-RPC wrapper and `_meta` field illustrated in section 6 are not exercised. The record of issued statements is held in memory and checked within one process. An executor operating across restarts or in parallel must durably store the model-evidence digest and `call_id` and coordinate access. If a failure occurs between execution and recording, the executor may not know whether the operation ran; it must retain that uncertainty rather than execute again.
+The proxy signs fixtures, and the executor and receiving service run in process. The JSON-RPC wrapper and `_meta` field illustrated in section 6 are not exercised.
 
 The verifier checks `vct` against a constant; no Type Metadata document is published for this example. The `sd-jwt` library limitation described in the first article remains: version `0.10.4` accepts unreferenced disclosures. The run does not exercise a real runtime's thread export and re-import.

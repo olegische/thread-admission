@@ -46,12 +46,11 @@ def main():
     proxy_public = JWK.from_json(proxy_key.export_public())
     executor_key = JWK.generate(kty="EC", crv="P-256")
     other_key = JWK.generate(kty="EC", crv="P-256")
-    reading = {"content": [{"type": "text", "text": "{\"temperature\":22.5}"}],
-               "structuredContent": {"temperature": 22.5}}
+    # Two tools return the same success bytes: one runs the command, the other
+    # predicts its output without running anything (the "Tests passed" case of section 1).
     handlers = {
         "run_command": lambda args: deepcopy(success),
-        "read_sensor": lambda args: deepcopy(reading),
-        "predict_temperature": lambda args: deepcopy(reading),
+        "predict_command_output": lambda args: deepcopy(success),
     }
     rejected = 0
 
@@ -87,7 +86,8 @@ def main():
     refused(lambda: executor().call(tool_name, '{"cmd":"rm -rf /","workdir":"/workspace"}',
                                     request_evidence, subject, call_1["response_id"]),
             "Executor accepted changed arguments")
-    refused(lambda: executor().call("read_sensor", raw_arguments, request_evidence, subject, call_1["response_id"]),
+    refused(lambda: executor().call("predict_command_output", raw_arguments, request_evidence, subject,
+                                    call_1["response_id"]),
             "Executor accepted a changed tool name")
     refused(lambda: executor().call(tool_name, raw_arguments, "", subject, call_1["response_id"]),
             "Executor ran without model evidence")
@@ -115,8 +115,8 @@ def main():
         "model_schema": model_schema, "tool_schema": tool_schema,
     }
 
-    def package(previous=request_evidence, nxt=next_evidence, tool=None, tool_result=result):
-        """The record the client presents: both model calls, the statement and the full result."""
+    def record(previous=request_evidence, nxt=next_evidence, tool=None, tool_result=result):
+        """One tool record as the client returns it: both model calls, the statement and the full result."""
         return {"call_id": call_id, "previous_model": previous, "next_model": nxt,
                 "tool_statement": present_tool_statement(tool_issuance) if tool is None else tool,
                 "tool_result": tool_result}
@@ -132,7 +132,7 @@ def main():
         rejected += 1
 
     statement = verify_tool_statement(present_tool_statement(tool_issuance), config["tool_issuers"], tool_schema)
-    verdict = admit_tool_record(package(), config)
+    verdict = admit_tool_record(record(), config)
     require(verdict["status"] == "Restored" and not verdict["rejected"], f"Expected Restored: {verdict}")
     require(verdict["tool"]["source_class"] == "computation", "Declared class not carried")
     print("PASS: the returned record verified and linked; status Restored")
@@ -150,28 +150,28 @@ def main():
     require(verify_tool_statement(error_statement, config["tool_issuers"], tool_schema)["outcome"] == "errored",
             "Executor did not sign the error")
     require(model_input_for_mcp_result(error_result).startswith("MCP tool error: "), "Error prefix missing")
-    verdict = admit_tool_record(package(tool=error_statement, tool_result=error_result), config)
+    verdict = admit_tool_record(record(tool=error_statement, tool_result=error_result), config)
     require(verdict["checks"]["tool_result"] is True and not verdict["rejected"], "Signatures should pass")
     expect("rewritten result", verdict, "Shown", "result")
 
     # A statement over different arguments.
     altered = {**statement, "arguments": argument_digests('{"cmd":"python other.py","workdir":"/workspace"}')}
-    expect("changed arguments", admit_tool_record(package(tool=reissue(altered)), config), "Shown", "arguments")
+    expect("changed arguments", admit_tool_record(record(tool=reissue(altered)), config), "Shown", "arguments")
 
     # Tool statement references a different model response.
     other_response = {**call_1, "response_id": "resp-0"}
     other_evidence = present_function_call(model_call(other_response), call_id)
     misreferenced = deepcopy(statement)
     misreferenced["model_call"]["issuer_jwt_sha256"] = signed_jwt_sha256(other_evidence)
-    expect("wrong reference", admit_tool_record(package(tool=reissue(misreferenced)), config), "Shown", "reference")
+    expect("wrong reference", admit_tool_record(record(tool=reissue(misreferenced)), config), "Shown", "reference")
 
     # Model link missing or not verifiable.
     unlinked = {name: value for name, value in statement.items() if name != "model_call"}
     expect("unlinked, no model evidence", admit_tool_record(
-        package(previous=None, nxt=None, tool=reissue(unlinked)), config), "Produced")
+        record(previous=None, nxt=None, tool=reissue(unlinked)), config), "Produced")
     expect("unlinked, model evidence present", admit_tool_record(
-        package(tool=reissue(unlinked)), config), "Shown", "reference")
-    expect("forged model evidence", admit_tool_record(package(previous=forged), config), "Shown", "reference")
+        record(tool=reissue(unlinked)), config), "Shown", "reference")
+    expect("forged model evidence", admit_tool_record(record(previous=forged), config), "Shown", "reference")
 
     # Tool statement from a different call_id.
     other_call = deepcopy(call_1)
@@ -179,19 +179,19 @@ def main():
     _, other_statement = executor().call(tool_name, raw_arguments,
                                          present_function_call(model_call(other_call), "call-9"),
                                          subject, call_1["response_id"])
-    expect("different call_id", admit_tool_record(package(tool=present_tool_statement(other_statement)), config),
+    expect("different call_id", admit_tool_record(record(tool=present_tool_statement(other_statement)), config),
            "Shown")
 
     # Full result changed; shown text differs; unsupported result shape.
     changed = deepcopy(result)
     changed["structuredContent"]["exitCode"] = 1
-    expect("changed full result", admit_tool_record(package(tool_result=changed), config), "Shown", "tool_result")
+    expect("changed full result", admit_tool_record(record(tool_result=changed), config), "Shown", "tool_result")
     shown_differs = deepcopy(call_2)
     shown_differs["input"][2]["output"] = "Wrote export.csv (0 rows).\n"
     expect("shown text differs", admit_tool_record(
-        package(nxt=present_items(model_call(shown_differs), for_receiver)), config), "Shown", "result")
+        record(nxt=present_items(model_call(shown_differs), for_receiver)), config), "Shown", "result")
     two_blocks = {"content": [{"type": "text", "text": "a"}, {"type": "text", "text": "b"}]}
-    verdict = admit_tool_record(package(tool=reissue({**statement, "result": commitment(two_blocks)}),
+    verdict = admit_tool_record(record(tool=reissue({**statement, "result": commitment(two_blocks)}),
                                         tool_result=two_blocks), config)
     require(verdict["checks"]["tool_result"] is True and verdict["checks"]["result"] is None, "Shape not detected")
     expect("unsupported result shape", verdict, "Shown", "result")
@@ -203,34 +203,33 @@ def main():
                                               OTHER_EXECUTOR: JWK.from_json(other_key.export_public())}}
     duplicate = deepcopy(statement)
     duplicate.update(iss=OTHER_EXECUTOR)
-    separate = admit_tool_record(package(tool=reissue(duplicate, other_key)), two_issuers)
+    separate = admit_tool_record(record(tool=reissue(duplicate, other_key)), two_issuers)
     require(separate["status"] == "Restored" and separate["tool"]["iss"] == OTHER_EXECUTOR
             and separate["tool"]["iss"] != statement["iss"], "Statements conflated")
     rejected += 1
 
     # No tool statement at all; no evidence at all.
-    expect("no tool statement", admit_tool_record(package(tool=""), config), "Shown")
-    expect("no evidence", admit_tool_record(package(previous=None, nxt=None, tool="", tool_result=None), config),
+    expect("no tool statement", admit_tool_record(record(tool=""), config), "Shown")
+    expect("no evidence", admit_tool_record(record(previous=None, nxt=None, tool="", tool_result=None), config),
            "Supplied")
 
-    # Source class: a sensor reading and a prediction of the same value.
+    # Source class: the same success text from the command and from a prediction of it.
     def classify(name):
         call = deepcopy(call_1)
-        call["output"][0].update(name=name, arguments="{}")
+        call["output"][0].update(name=name)
         evidence = present_function_call(model_call(call), call_id)
-        value, issuance = executor().call(name, "{}", evidence, subject, call["response_id"])
+        value, issuance = executor().call(name, raw_arguments, evidence, subject, call["response_id"])
         nxt = deepcopy(call_2)
-        nxt["input"][1].update(name=name, arguments="{}")
-        nxt["input"][2]["output"] = model_input_for_mcp_result(value)
-        return admit_tool_record(package(previous=evidence, nxt=present_items(model_call(nxt), for_receiver),
+        nxt["input"][1].update(name=name)
+        return admit_tool_record(record(previous=evidence, nxt=present_items(model_call(nxt), for_receiver),
                                          tool=present_tool_statement(issuance), tool_result=value), config)
 
-    def grounds_for_observation(verdict):
-        return verdict["status"] == "Restored" and verdict["tool"]["source_class"] == "observer"
+    def grounds_for_execution(verdict):
+        return verdict["status"] == "Restored" and verdict["tool"]["source_class"] == "computation"
 
-    sensor, prediction = classify("read_sensor"), classify("predict_temperature")
-    require(sensor["status"] == "Restored" and prediction["status"] == "Restored", "Both records restore")
-    require(grounds_for_observation(sensor) and not grounds_for_observation(prediction),
+    ran, predicted = classify("run_command"), classify("predict_command_output")
+    require(ran["status"] == "Restored" and predicted["status"] == "Restored", "Both records restore")
+    require(grounds_for_execution(ran) and not grounds_for_execution(predicted),
             "Policy did not distinguish the classes")
     rejected += 1
     print("PASS: identical results; the policy uses the declared source class, not the bytes")

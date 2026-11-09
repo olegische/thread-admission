@@ -65,13 +65,15 @@ class Executor:
         return self.executions[key]
 ```
 
-The example also checks how the executor and client handle incorrect or repeated requests:
+The example also checks how the executor and client handle incorrect requests and replayed evidence:
 
 - **Changed arguments:** the executor rejects a request whose arguments differ from the model's signed call.
 - **Changed tool:** the executor rejects a request naming a different tool.
 - **Missing evidence:** the executor rejects the request without model evidence.
 - **Unknown key:** the executor rejects model evidence signed by a key it does not accept.
 - **Unknown `call_id`:** the client cannot prepare a presentation for a call absent from the signed model response.
-- **Repeated evidence:** the same executor receives the evidence twice, runs the handler once and returns the same statement.
+- **Replayed evidence:** the same executor receives the evidence twice, runs the handler once and returns the same statement.
+
+The record of issued statements is held in memory and checked within one process. An executor operating across restarts or in parallel must durably store the model-evidence digest and `call_id` and coordinate access. If a failure occurs between execution and recording, the executor may not know whether the operation ran; it must retain that uncertainty rather than execute again.
 
 After the conversation, the client can keep the thread with the model and tool evidence. The example passes the record in memory to simulate its return.

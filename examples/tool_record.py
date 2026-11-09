@@ -13,6 +13,8 @@ from tool_evidence import verify_tool_statement
 
 def link_checks(previous_model, tool, next_model, tool_result):
     """Compare verified claims; None means the check could not be made."""
+    # 1. Select by call_id: the model's request in the previous call and the output
+    #    shown to the model in the next call. An absent or ambiguous item gives None.
     call_id = tool.get("call_id")
     call = find_call_item(previous_model, "response", "function_call", call_id)
     shown = find_call_item(next_model, "request", "function_call_output", call_id)
@@ -23,9 +25,14 @@ def link_checks(previous_model, tool, next_model, tool_result):
         except (TypeError, ValueError):
             return None
 
+    # 2. The full MCP result the client returned must match the digest and length
+    #    the executor signed. Only then is the conversion rule applied to it.
     verified_result = compare(tool_result, tool.get("result"), commitment)
     expected = model_input_for_mcp_result(tool_result) if verified_result else None
     shown_output = shown.get("output") if shown else None
+    # 3. Three links: the model's raw argument string against both digests the
+    #    executor signed; the returned result against the statement; the string
+    #    shown to the model against the accepted conversion of that result.
     return {
         "arguments": compare(call.get("arguments") if call else None,
                              tool.get("arguments"), argument_digests),
@@ -54,21 +61,23 @@ def admission_status(model_shown, tool_accepted, reference_ok, checks):
     return {"status": "Supplied", "discrepancy": []}
 
 
-def admit_tool_record(package, config):
+def admit_tool_record(record, config):
     """Admit one tool record.
 
-    package: previous_model, next_model, tool_statement (SD-JWT presentations
+    record:  previous_model, next_model, tool_statement (SD-JWT presentations
              or None), tool_result (full MCP result or None) and call_id.
     config:  model_key, subject, previous_response_id, next_response_id,
              tool_issuers, model_schema, tool_schema.
     """
     rejected = {}
 
+    # 1. Verify each presentation the client returned. A statement that fails is
+    #    recorded and treated as absent; the record is not rejected for it.
     def accepted(name, verify):
-        if not package.get(name):
+        if not record.get(name):
             return None
         try:
-            return verify(package[name])
+            return verify(record[name])
         except ValueError as error:
             rejected[name] = str(error)
             return None
@@ -80,12 +89,17 @@ def admit_tool_record(package, config):
     tool = accepted("tool_statement", lambda p: verify_tool_statement(
         p, config["tool_issuers"], config["tool_schema"]))
 
-    call_id = package["call_id"]
+    # 2. Model evidence covers the result only if the next call's verified claims
+    #    include the output shown to the model for this call_id.
+    call_id = record["call_id"]
     shown = find_call_item(next_model, "request", "function_call_output", call_id)
     model_shown = shown is not None and "output" in shown
+    # 3. The reference: the statement names this call_id and the digest of the
+    #    signed model JWT the client returned, computed here, not taken on trust.
     reference_ok = (tool is not None and previous is not None and tool["call_id"] == call_id
                     and tool.get("model_call", {}).get("issuer_jwt_sha256")
-                    == signed_jwt_sha256(package["previous_model"]))
-    checks = link_checks(previous, tool or {"call_id": call_id}, next_model, package.get("tool_result"))
+                    == signed_jwt_sha256(record["previous_model"]))
+    # 4. Compare the covered values, then apply the section 4 rules to get a status.
+    checks = link_checks(previous, tool or {"call_id": call_id}, next_model, record.get("tool_result"))
     decision = admission_status(model_shown, tool is not None, reference_ok, checks)
     return {**decision, "checks": checks, "reference": reference_ok, "rejected": rejected, "tool": tool}

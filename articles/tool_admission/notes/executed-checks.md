@@ -68,7 +68,7 @@ Rejection cases, 30 in all, each with its expected outcome fixed before the run:
 - Changed full result fails the commitment check; shown text that differs from the conversion fails the result comparison; a two-block result makes the comparison `None` and the record is not Restored.
 - A statement under a key the service does not accept is rejected. A second accepted issuer signing the same digests verifies as a separate statement identified by its issuer.
 - No tool statement: Shown. No evidence: Supplied.
-- A sensor tool and a prediction tool return identical bytes; both records are Restored; a policy requiring an observation accepts the sensor's `observer` class and not the `generator` class.
+- `run_command` and `predict_command_output` return identical success bytes; both records are Restored; a policy asking whether the export ran accepts the `computation` class and not the `generator` class (the `Tests passed` case of section 1).
 - Removing `source_class` or `result`, an unknown `source_class` or `outcome`, an extra claim, a future `iat`, an unknown `vct`, a presentation withholding `result`, and a tampered disclosure are all rejected.
 - Presenting a `call_id` that is not in the signed response is rejected.
 
