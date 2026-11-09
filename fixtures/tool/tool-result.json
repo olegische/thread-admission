@@ -1,0 +1,11 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Wrote export.csv (128 rows).\n"
+    }
+  ],
+  "structuredContent": {
+    "exitCode": 0
+  }
+}

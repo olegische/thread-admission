@@ -1,0 +1,24 @@
+{
+  "sub": "api-account-1",
+  "response_id": "resp-1",
+  "input": [
+    {
+      "type": "message",
+      "role": "user",
+      "content": [
+        {
+          "type": "input_text",
+          "text": "Run export.py to create the customer export."
+        }
+      ]
+    }
+  ],
+  "output": [
+    {
+      "type": "function_call",
+      "call_id": "call-1",
+      "name": "run_command",
+      "arguments": "{\"cmd\":\"python export.py\",\"workdir\":\"/workspace\"}"
+    }
+  ]
+}

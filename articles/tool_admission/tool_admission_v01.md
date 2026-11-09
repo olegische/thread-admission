@@ -70,7 +70,6 @@ For the `python export.py` call from the opening, the executor could issue a sta
 issuer:       the tool executor
 call:         call-1
 model call:   reference to the proxy's model-call evidence
-execution:    exec-1
 arguments:    hash of {"cmd":"python export.py","workdir":"/workspace"}
 outcome:      executed
 source class: computation
@@ -78,7 +77,7 @@ result:       hash of {"content":[{"type":"text","text":"Wrote export.csv (128 r
                        "structuredContent":{"exitCode":0}}
 ```
 
-The executor signs these claims and makes the statement available with the thread. The reference identifies the proxy's evidence presented with the request; the execution ID identifies the executor's attempt. In this example the executor declares that the output was computed; the receiving service decides whether to accept that claim. The [tool evidence profile](parts/06-tool-statement.md) specifies the full statement and its schema.
+The executor signs these claims and makes the statement available with the thread. The reference identifies the proxy's evidence presented with the request. In this example the executor declares that the output was computed; the receiving service decides whether to accept that claim. The [tool evidence profile](parts/06-tool-statement.md) specifies the full statement and its schema.
 
 When the thread returns, the service checks signatures from issuers it accepts and compares the evidence: did the executor receive the arguments requested by the model, and was the result the executor reported sent to the model? A mismatch tells it that the values covered by the statements differ. We will work through these checks in the next section.
 
@@ -91,7 +90,7 @@ Depending on the evidence available, the service reaches four outcomes:
 - **Shown:** the result was sent to the model; its producer is not established.
 - **Supplied:** no evidence is available; the record remains supplied context.
 
-Our experiment uses [SD-JWT](https://www.rfc-editor.org/rfc/rfc9901) for the tool statement, allowing the holder to disclose selected claims. Other issuers can use their own formats; each statement is checked according to its format.
+Our example uses [SD-JWT](https://www.rfc-editor.org/rfc/rfc9901) for the tool statement, allowing the holder to disclose selected claims. Other issuers can use their own formats; each statement is checked according to its format.
 
 ## Checking the evidence
 
@@ -134,16 +133,16 @@ Results also need a shared representation. If the runtime transforms the executo
 
 ### Identifying the execution
 
-In our proposed profile, the client sends the proxy's evidence with the tool call, disclosing the tool name and arguments needed for the check. The executor verifies the evidence, checks the requested tool and arguments, and records a reference to the proxy's signed evidence and `call_id` in its own statement. It also assigns an ID to the execution.
+In our proposed profile, the client sends the proxy's evidence with the tool call, disclosing the tool name and arguments needed for the check. The executor verifies the evidence, checks the requested tool and arguments, and records a reference to the proxy's signed evidence and `call_id` in its own statement.
 
 ```text
 Proxy evidence:   call-1 and python export.py disclosed from the model call
-Tool evidence:    reference to the proxy's evidence, call-1, execution exec-1
+Tool evidence:    reference to the proxy's evidence, call-1
 ```
 
 When the thread returns, the service verifies both statements, checks the reference and compares the covered values. The model-evidence issuer does not need to know about the tool statement. A similar link from an execution record to a request attestation was proposed in the [SEP-2817 discussion](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2817).
 
-The executor handles repeated requests for the same model call under an explicit retry rule, so it does not silently dispatch multiple executions for that call. The reference records the executor's account of the request it processed. The result comparison establishes what was shown to the model; it cannot trace the physical path taken by identical bytes through the client.
+Once an executor has issued a statement for a model call, presenting the same evidence and `call_id` again returns that statement without executing the call again. A new tool call in the runtime has a new `call_id` and receives its own statement. The reference records the executor's account of the request it processed. The result comparison establishes what was shown to the model; it cannot trace the physical path taken by identical bytes through the client.
 
 The next section uses these checks to decide what the service can retain as history and how it can use the result.
 
@@ -190,33 +189,33 @@ The proxy's evidence covers the string sent to the model. To compare it with the
 
 The service must know and accept the rule. A runtime can transform a result in many ways; a rule that produces a matching string still needs to be suitable for the service's policy. For example, the service must consider how a rule handles errors before accepting it. The same approach can cover truncation when the rule and the full result allow the service to reproduce the text shown to the model.
 
-Our experiment defines one such rule for an MCP result with a single text block. For a tool error, the rule adds an explicit error prefix to the text. It checks the complete signed result and repeats the conversion. Other result shapes and conversions need their own accepted rules.
+The runnable example in section 7 uses this rule for an MCP result with one text block. It verifies the full result and compares the converted text with the proxy's evidence. Other result shapes and conversions need their own accepted rules.
 
 ## The tool evidence profile
 
 For our profile we use [SD-JWT](https://www.rfc-editor.org/rfc/rfc9901), so the holder can disclose selected claims. A complete statement can also be carried in a DSSE envelope when selective disclosure is not needed.
 
-The [SD-JWT VC draft](https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/) defines `typ: dc+sd-jwt` and a `vct` claim that identifies the credential type. We use `…/tool-call/v1` for the tool statement. Type Metadata describes its claims, including which are required and which may be selectively disclosed. Model-call evidence keeps its own issuer and format; it does not need to use this type. Our profile requires the verifier to obtain and process the applicable metadata; `vct#integrity` can protect the referenced document.
+The [SD-JWT VC draft](https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/) defines `typ: dc+sd-jwt` and a `vct` claim that identifies the credential type. Our example uses `https://thread-admission.example/tool-call/v1` for the tool statement and checks this value against a constant. The profile provides for Type Metadata to describe its claims, including which are required and which may be selectively disclosed; `vct#integrity` can protect the referenced document. Model-call evidence keeps its own issuer and format.
 
 The tool statement includes:
 
 - **Issuer and call:** `iss`, `sub`, `iat`, `call_id` and `tool_id`. These identify the executor, the account on whose behalf it ran, the time, the call and the tool.
-- **Origin and execution:** optional `model_call` references the proxy's signed model-call evidence and identifies the executor's execution. Optional `caller_id` records the client identity authenticated by the executor; `client_stated_purpose` records an explanation provided by that client.
-- **Outcome and method:** `outcome`, `source_class` and `tool_kind`. The outcome is `executed`, `refused`, `errored` or `cancelled`; the tool kind is `read`, `write`, `think` or `generic`.
+- **Origin and execution:** optional `model_call` references the proxy's signed model-call evidence. Optional `caller_id` records the client identity authenticated by the executor; `client_stated_purpose` records an explanation provided by that client.
+- **Outcome and method:** `outcome` and `source_class`. The outcome is `executed`, `refused`, `errored` or `cancelled`.
 - **Arguments and result:** digests of the arguments and result, with the result's byte length. These can be selectively disclosed. The evidence-checking section explains why the arguments have two digests.
 
-Claims such as `iss`, `sub` and `iat` have registered meanings. The tool-specific names, including `source_class`, `tool_id`, `call_id`, `outcome`, `arguments` and `result`, are defined by our profile and interpreted under the statement's `vct`. The schema can be extended with `txn` for a transaction identifier, `cnf` for holder key binding, `status` for revocation and `jti` for uniqueness. `call_id` remains the identifier relayed from the model. We do not use the registered names `amr`, `acr`, `vot`, `vtm`, `events` or `attest` for these values.
+Claims such as `iss`, `sub` and `iat` have registered meanings. The tool-specific names, including `source_class`, `tool_id`, `call_id`, `outcome`, `arguments` and `result`, are defined by our profile and interpreted under the statement's `vct`. For a linked call, the issuer, model-evidence digest and `call_id` identify the execution under the replay rule. The schema can be extended with `txn` for a transaction identifier, `cnf` for holder key binding, `status` for revocation and `jti` to identify the statement. `call_id` remains the identifier relayed from the model. We do not use the registered names `amr`, `acr`, `vot`, `vtm`, `events` or `attest` for these values.
 
 The `model_call` field is optional, so an executor can issue a statement without a model link. For Restored, the service needs that link, the model evidence and the result checks. `client_stated_purpose` carries the client's explanation, and `caller_id` is included when the executor has authenticated the client; authorization is decided separately.
 
-The schema below is for full-result verification. It requires a digest and length for every terminal outcome, including refusal, error, confirmed cancellation and empty output. The executor attests to a cancellation it observed; the client records a timeout or cancellation request it observed. A presentation without result disclosure, for example for audit, needs separate validation rules. The profile's reference implementation has not yet been published.
+The schema below is for full-result verification. It requires a digest and length for every terminal outcome, including refusal, error, confirmed cancellation and empty output. The executor attests to a cancellation it observed; the client records a timeout or cancellation request it observed. A presentation without result disclosure, for example for audit, needs separate validation rules. The [example implementation](../../examples/run_tool.py) is in the companion repository.
 
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "required": ["vct", "iss", "sub", "iat", "call_id", "tool_id",
-               "source_class", "tool_kind", "outcome", "arguments", "result"],
+               "source_class", "outcome", "arguments", "result"],
   "properties": {
     "vct": {"type": "string"},
     "iss": {"type": "string"},
@@ -225,14 +224,12 @@ The schema below is for full-result verification. It requires a digest and lengt
     "call_id": {"type": "string"},
     "tool_id": {"type": "string"},
     "source_class": {"enum": ["observer", "computation", "generator"]},
-    "tool_kind": {"enum": ["read", "write", "think", "generic"]},
     "outcome": {"enum": ["executed", "refused", "errored", "cancelled"]},
     "model_call": {
       "type": "object",
-      "required": ["issuer_jwt_sha256", "execution_id"],
+      "required": ["issuer_jwt_sha256"],
       "properties": {
-        "issuer_jwt_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-        "execution_id": {"type": "string", "minLength": 1}
+        "issuer_jwt_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
       },
       "additionalProperties": false
     },
@@ -261,13 +258,15 @@ The schema below is for full-result verification. It requires a digest and lengt
 }
 ```
 
-The `result` field carries the digest and length of the complete result. The experiment must define the deterministic envelope used for each outcome before producing test vectors. `cnf` and `status` are omitted from this schema; they concern holder binding and revocation.
+The `result` field carries the digest and length of the complete `CallToolResult` encoded in JCS. A tool error carries `isError` in that result. The example issues statements for successful results and errors. `cnf` and `status` are omitted from this schema; they concern holder binding and revocation.
 
 ### Linking the model call and tool result
 
 For the MCP example, `result.sha256` and `result.length` cover the UTF-8 bytes of the complete `CallToolResult` encoded in JCS, including `content` and `structuredContent` when present. The holder keeps the full result for the receiver to check. The statement travels separately; it and the JSON-RPC wrapper are outside the hashed object.
 
-To link the execution to the model call, the client presents the proxy's evidence with the disclosures needed to verify that call. The reference is the SHA-256 digest of the exact UTF-8 bytes of the issuer-signed compact JWT, excluding disclosures and key binding, so it stays stable across different presentations. The signature and disclosed claims are verified separately.
+To link the execution to the model call, the client presents the proxy's evidence, disclosing the tool name and arguments from one `function_call`. The verifier in the first article required every field to be disclosed. Here the selective presentation is checked against a schema in which selectively disclosable fields are optional; the executor separately requires the tool name and arguments so it can compare them with the request.
+
+The reference is the SHA-256 digest of the exact UTF-8 bytes of the issuer-signed compact JWT, excluding disclosures and key binding, so it stays stable across different presentations. For another evidence format, the profile needs to define which signed bytes to hash. The signature and disclosed claims are verified separately.
 
 For example, a client can send the evidence with an MCP request using an application-defined `_meta` key:
 
@@ -292,8 +291,7 @@ After checking the evidence and processing the call, the executor includes a ref
 {
   "call_id": "call-1",
   "model_call": {
-    "issuer_jwt_sha256": "<sha256-of-signed-jwt>",
-    "execution_id": "exec-1"
+    "issuer_jwt_sha256": "<sha256-of-signed-jwt>"
   }
 }
 ```
@@ -307,28 +305,24 @@ The client can later present the receiver with the same signed JWT and an additi
 }
 ```
 
-The values in angle brackets stand for the encoded JWT, disclosures, hash and tool statement. The receiver hashes the signed JWT and compares it with `issuer_jwt_sha256`. Both presentations refer to the same signed JWT, so the additional disclosure does not change that hash. The `_meta` key and the receiver's JSON wrapper are example application choices.
+The values in angle brackets stand for the encoded JWT, disclosures, hash and tool statement. The receiver hashes the signed JWT and compares it with `issuer_jwt_sha256`. Both presentations refer to the same signed JWT, so the additional disclosure does not change that hash. The `_meta` key and the receiver's JSON wrapper illustrate application choices; the code example does not exercise them.
 
-The first article's example requires all fields to be disclosed; this use needs validation rules for a selective presentation. Its signed JWT still exposes metadata including issuer, subject, response ID, item types and call IDs. Other model-evidence formats need their own way to identify the signed statement.
+## Running the profile
 
-## The experiment
+The companion code runs the profile against an export call and a returned tool record. A mock proxy signs model-call fixtures using the first article's code; the executor and receiving service are Python modules in the repository. Each run generates temporary keys in memory.
 
-We will test these rules on a tool call and a returned thread.
+### The export call
 
-### Setup
+The proxy signs the model response that requests `run_command`. The client discloses the tool name and arguments to the executor. The executor verifies the presentation, requires exactly one disclosed function call and checks its name and arguments against the request. It runs the handler and signs a tool statement with the result and the reference to the proxy's signed JWT. In this example, the handler returns a prepared MCP result from `fixtures/tool/`.
 
-The environment is a simulated tool-use benchmark with domain state held in a database file: hidden state, a real executor, an independent verifier beside it. The example thread of both articles is one of its fixtures.
+The runtime converts that result to the string sent to the next model call. The mock proxy signs the next call, and the receiving service verifies the model and tool statements. For the matching fixtures, the checks pass and the service assigns the record **Restored**. The handler and proxy use fixtures; the example makes no model API call.
 
-The issuer of tool evidence sits where the tool runs. The planned implementation uses a small open-source tool runtime whose single dispatch point validates arguments against a JSON Schema and calls the host's handler. For a model-originated request, the client also sends the proxy's evidence with disclosures for the requested tool and its arguments. The executor verifies it, checks that the disclosed tool name, `call_id` and arguments match the request, and assigns an execution ID before dispatch. The runtime assembles a call record with the reference, execution ID, argument digests, result digest, `tool_id`, the tool's declared `source_class` and `tool_kind`. A separate package signs it as an SD-JWT under the `tool-call/v1` type with the executor's key. The handler's author does not need to add signing code.
-
-The executor durably reserves the pair of the model-evidence digest and `call_id` before dispatch, scoped to its own identity. For retries it returns the existing execution or reports that it is still in progress; it does not dispatch a second execution under the same pair. After a crash, the executor may be unable to determine whether dispatch occurred and must retain that uncertainty. A call ID must identify exactly one disclosed function call in the model response. A deliberate new execution requires a new model call. This rule does not prevent a different executor from receiving the same evidence; the receiving service must handle multiple statements. It is part of the experiment and must be tested under concurrent retries and after a restart.
-
-### Four claims under test
+The run checks four points:
 
 1. A tool result without tool evidence is indistinguishable from a substituted one, however valid the model evidence covering it.
-2. The two link checks detect a substituted result and substituted arguments between neighbouring statements.
-3. One tool reads a temperature sensor; another asks a model to predict the temperature. Their executors sign the results and declare `source_class`. The receiving service can use those claims to distinguish a sensor reading from a prediction when it accepts the issuers' claims.
-4. A receiving service can repeat an accepted conversion of an MCP result and compare it with the result shown to the model.
+2. Comparing the covered arguments and results detects substitutions between the model call and the executor's statement.
+3. The sensor and prediction handlers return identical fixture data, with `observer` and `generator` classes respectively. A policy requiring an observation accepts the first and does not use the second as grounds.
+4. The receiver can repeat the accepted conversion of an MCP result and compare it with the string covered by model evidence.
 
 ### Comparing covered values
 
@@ -346,6 +340,21 @@ def argument_digests(raw_arguments):
         "raw_sha256": sha256(raw_arguments.encode("utf-8")).hexdigest(),
         "jcs_sha256": sha256(rfc8785.dumps(parsed)).hexdigest(),
     }
+
+
+def commitment(value):
+    """Digest and length of a JSON value in its canonical (JCS) encoding."""
+    encoded = rfc8785.dumps(value)
+    return {"sha256": sha256(encoded).hexdigest(), "length": len(encoded)}
+
+
+def find_call_item(evidence, group, item_type, call_id):
+    """The one item of `item_type` for `call_id` in a group of claims, else None."""
+    if evidence is None or call_id is None:
+        return None
+    matches = [item for item in evidence.get(group, [])
+               if item.get("type") == item_type and item.get("call_id") == call_id]
+    return matches[0] if len(matches) == 1 else None
 
 
 def model_input_for_mcp_result(result):
@@ -370,42 +379,21 @@ def model_input_for_mcp_result(result):
 def link_checks(previous_model, tool, next_model, tool_result):
     """Compare verified claims; None means the check could not be made."""
     call_id = tool.get("call_id")
+    call = find_call_item(previous_model, "response", "function_call", call_id)
+    shown = find_call_item(next_model, "request", "function_call_output", call_id)
 
-    def find_one(evidence, group, item_type):
-        if evidence is None or call_id is None:
-            return None
-        matches = [item for item in evidence.get(group, [])
-                   if item.get("type") == item_type
-                   and item.get("call_id") == call_id]
-        return matches[0] if len(matches) == 1 else None
-
-    def compare(value, expected_digest):
-        if not isinstance(value, str) or not isinstance(expected_digest, str):
-            return None
-        return sha256(value.encode("utf-8")).hexdigest() == expected_digest
-
-    def check_result(result):
-        commitment = tool.get("result")
-        if not isinstance(result, dict) or not isinstance(commitment, dict):
-            return None
-        digest = commitment.get("sha256")
-        length = commitment.get("length")
-        if not isinstance(digest, str) or type(length) is not int:
-            return None
+    def compare(value, expected, digest):
         try:
-            encoded = rfc8785.dumps(result)
+            return digest(value) == expected if value is not None and expected is not None else None
         except (TypeError, ValueError):
             return None
-        return len(encoded) == length and sha256(encoded).hexdigest() == digest
 
-    call = find_one(previous_model, "response", "function_call")
-    shown = find_one(next_model, "request", "function_call_output")
-    verified_result = check_result(tool_result)
+    verified_result = compare(tool_result, tool.get("result"), commitment)
     expected = model_input_for_mcp_result(tool_result) if verified_result else None
     shown_output = shown.get("output") if shown else None
     return {
         "arguments": compare(call.get("arguments") if call else None,
-                             tool.get("arguments", {}).get("raw_sha256")),
+                             tool.get("arguments"), argument_digests),
         "tool_result": verified_result,
         "result": (shown_output == expected
                    if isinstance(shown_output, str) and expected is not None
@@ -413,39 +401,26 @@ def link_checks(previous_model, tool, next_model, tool_result):
     }
 ```
 
-Each check returns `True` for a match, `False` for a mismatch and `None` when the data is missing, the candidate is ambiguous or the conversion rule does not apply. The receiver selects the rule under its own policy; the example does not accept executable rules from the returned thread. The function does not verify signatures, compare canonical argument hashes or establish that the statements concern the same execution. Those checks require additional inputs and rules.
+Each check returns `True` for a match, `False` for a mismatch and `None` when the data is missing, the candidate is ambiguous or the conversion rule does not apply. The receiver selects the rule under its own policy; the example does not accept executable rules from the returned thread. The function does not verify signatures or establish that the statements concern the same execution. Those checks require additional inputs and rules.
 
-### Negative cases
+### Checks and results
 
-Each case fixes its expected outcome before it is run.
+The code runs the matching case and 30 rejection and boundary checks. The [results note](notes/executed-checks.md) records the run and its versions. Among the cases:
 
-| Case | Expected |
-|---|---|
-| Result rewritten from exit 1 to exit 0 before the model saw it; model evidence intact | model link passes; tool link fails; record not Restored |
-| Arguments in the issued function call differ from the arguments in the tool statement | argument link fails |
-| Tool statement references a different model response | reference check fails; record not Restored |
-| Model evidence is missing or its signature fails | executor does not issue a model-linked statement; a receiver cannot establish the link |
-| Same model evidence and `call_id` submitted concurrently or after restart | at most one dispatch; retries refer to the same execution or report it in progress |
-| Tool statement from a different `call_id` presented for this record | no link; record stays Shown |
-| Full result verifies, and applying the accepted conversion yields the shown text | result comparison passes; Restored also requires the other checks |
-| Full result has been changed | result commitment check fails |
-| Full result verifies, but shown text differs from the accepted conversion | result comparison fails |
-| Conversion is unknown or the result shape is unsupported | comparison cannot be made; result link is not restored |
-| Tool statement from a different issuer under the same `call_id` and digests | verifies as a separate statement; matching values alone do not establish the same execution |
-| Record with no tool statement in a thread whose message chain verifies | Shown; message matches unaffected |
-| A tool asks a model to predict the temperature and declares `source_class: generator`; all signatures are valid and execution binding is established | Restored as a record; a policy requiring a sensor reading does not use the prediction as grounds |
-| The same case with the `source_class` claim removed | Type Metadata marks the claim mandatory and never disclosable; validation fails; statement rejected, not downgraded |
-| Tool statement with `outcome` of `refused`, thread claims success | contradiction surfaced; record not Restored |
-| Terminal tool statement omits `result` | full-result validation fails for every outcome |
-| Statement with an unknown `vct` or an unknown `source_class` value | rejected; the verifier does not guess |
+- **Changed result.** The executor signs a database error and the proxy signs a success message shown to the model. Both signatures verify; the result comparison fails, and the service returns Shown with a `result` discrepancy.
+- **Changed request.** The executor rejects a tool name or arguments that differ from the disclosed model call. The receiver detects a signed statement over different arguments.
+- **Missing or different model evidence.** The executor rejects absent evidence or evidence signed by an unknown key. A tool statement that references a different model call fails the reference check. An unlinked statement is Produced without model evidence and Shown when model evidence covers the result.
+- **Replayed request.** Presenting the same model evidence twice to the same executor instance produces one dispatch and returns the same statement.
+- **Result and conversion.** Changing the full result fails its commitment check. Changed model input fails the result comparison. An unsupported two-block result leaves that comparison unavailable.
+- **Missing evidence.** A record without a tool statement is Shown when model evidence covers it; a record without either kind of evidence is Supplied.
+- **Source class.** Both the simulated sensor reading and prediction are Restored. The example policy accepts the declared `observer` class as grounds for an observation and does not accept `generator` for that purpose.
+- **Statement validation.** Removing `source_class` or `result`, using an unknown class, outcome or `vct`, adding an extra claim, withholding the result or changing a disclosure is rejected. JSON Schema requires `source_class`; the example does not mark it for selective disclosure.
 
-### Vectors
+### Limits of the example
 
-Test vectors follow the split proposed in the MCP thread's vector pull request and used in supply-chain conformance suites: normative cases cover bytes, signatures and link checks and must produce identical results in any implementation; policy cases cover lifetimes, accepted algorithms and clock skew and are normative only once the profile fixes those policies. Time-dependent cases carry a fixed verification time in their expected output. Interoperability is defined as two implementations producing the same expected output for every normative case.
+The proxy signs fixtures, and the executor and receiving service run in process. The JSON-RPC wrapper and `_meta` field illustrated in section 6 are not exercised. The record of issued statements is held in memory and checked within one process. An executor operating across restarts or in parallel must durably store the model-evidence digest and `call_id` and coordinate access. If a failure occurs between execution and recording, the executor may not know whether the operation ran; it must retain that uncertainty rather than execute again.
 
-### What the experiment cannot show
-
-It runs against a simulated environment and a mock proxy. It will not show that the call record survives a real runtime's export and re-import, which the earlier article already lists as its own open issue. It will not show that any executor outside the experiment issues anything. It tests the rules, not the ecosystem.
+The verifier checks `vct` against a constant; no Type Metadata document is published for this example. The `sd-jwt` library limitation described in the first article remains: version `0.10.4` accepts unreferenced disclosures. The run does not exercise a real runtime's thread export and re-import.
 
 ## What tool evidence does not establish
 
@@ -458,6 +433,8 @@ Stated as a verifier would state them.
 5. The source class is declared by the executor about itself. A server that declares `observer` while returning generated text is the second limit again, with a different field, and a control plane that keeps its own table of classes by tool identity is entitled to override the declaration.
 6. The profile carries one record per call with an `outcome`. It does not separate a decision made before the effect from the outcome observed after it, so it cannot answer "was this allowed" as distinct from "did this run". The Internet-Draft that continued SEP-2828 does separate them; the composition section says how the two fit.
 7. A statement carried inside the thread, in MCP's `_meta` or in a runtime's export, depends on every intermediary preserving it. A lost statement is lost evidence, not a verification failure, and the record it would have covered drops to Shown.
+8. Replay protection applies within one executor. Another executor that receives the same model evidence can issue its own statement, so the receiving service needs to handle multiple statements for one `call_id`.
+9. Selective disclosure hides selected values in the model evidence. The signed JWT still exposes metadata including issuer, subject, response ID, item types and call IDs, which the executor can see when the evidence is presented.
 
 ### Three questions this article does not answer
 
@@ -479,8 +456,8 @@ Which tools the agent may call is authority, not standing: tool allow-lists, cal
 
 **Two records in time.** The decision-before-effect and outcome-after-effect split of SEP-2828 and the Verification Summary Attestation answers a question this profile does not ask, whether an operation was allowed. Admitting a thread that carries both records, with the outcome pinning the decision's digest, is the next piece of work.
 
-**Lineage across agents.** The model closes on itself. An agent's output handed to another agent is, for the receiver, an input artifact of the same kind as a tool result: produced by an executor it did not run. The first agent's operator can issue a statement of the same shape as tool evidence, its result the handoff artifact, its class `generator`, with references by digest to the statements it consumed, the weather tool's statement, its own model statements. In in-toto terms these are `materials` and `subject`; in PROV terms, `used` and `wasGeneratedBy`; the alternating chain of one thread is the special case with one issuer of each kind. The receiving agent applies the four-row table twice. To continue the first agent's text it needs only the first agent's statement. To act on the weather it follows the references to the weather tool's statement and verifies that itself, under its own issuer configuration, independent of the first agent's word. One invariant makes this safe and its absence makes it laundering: references do not raise the class. A statement that cites an observer's statement is still a generator's statement. An action that needs an observation needs a path to an observer-class leaf from an accepted issuer with passing link checks; generator nodes along the path may transform, they may not originate. Repackaging a record is not corroboration. Specifying this across several issuers is open work; the article names it and leaves it.
+**Lineage across agents.** The model closes on itself. An agent's output handed to another agent is, for the receiver, an input artifact of the same kind as a tool result: produced by an executor it did not run. The first agent's operator can issue a statement of the same shape as tool evidence, its result the handoff artifact, its class `generator`, with references by digest to the statements it consumed, the weather tool's statement, its own model statements. In in-toto terms these are `materials` and `subject`; in PROV terms, `used` and `wasGeneratedBy`; the alternating chain of one thread is the special case with one issuer of each kind. The receiving agent applies the four statuses twice. To continue the first agent's text it needs only the first agent's statement. To act on the weather it follows the references to the weather tool's statement and verifies that itself, under its own issuer configuration, independent of the first agent's word. One invariant makes this safe and its absence makes it laundering: references do not raise the class. A statement that cites an observer's statement is still a generator's statement. An action that needs an observation needs a path to an observer-class leaf from an accepted issuer with passing link checks; generator nodes along the path may transform, they may not originate. Repackaging a record is not corroboration. Specifying this across several issuers is open work; the article names it and leaves it.
 
 ### Run the examples
 
-The reference implementation, fixtures, schemas, Type Metadata documents and the check script that keeps the code and this text in agreement are being added to the [companion repository](../../README.md) alongside the earlier article's examples. Until the experiment section reports results, treat the profile as proposed and the rules as the author's claims.
+The example implementation, fixtures, schemas and the check script that keeps the code and this text in agreement are in the [companion repository](../../README.md) alongside the earlier article's examples. The [executed-checks note](notes/executed-checks.md) records the results and limits. The profile has been checked on fixtures and remains a proposal for use with a real runtime.

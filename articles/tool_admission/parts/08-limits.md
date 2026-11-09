@@ -9,6 +9,8 @@ Stated as a verifier would state them.
 5. The source class is declared by the executor about itself. A server that declares `observer` while returning generated text is the second limit again, with a different field, and a control plane that keeps its own table of classes by tool identity is entitled to override the declaration.
 6. The profile carries one record per call with an `outcome`. It does not separate a decision made before the effect from the outcome observed after it, so it cannot answer "was this allowed" as distinct from "did this run". The Internet-Draft that continued SEP-2828 does separate them; the composition section says how the two fit.
 7. A statement carried inside the thread, in MCP's `_meta` or in a runtime's export, depends on every intermediary preserving it. A lost statement is lost evidence, not a verification failure, and the record it would have covered drops to Shown.
+8. Replay protection applies within one executor. Another executor that receives the same model evidence can issue its own statement, so the receiving service needs to handle multiple statements for one `call_id`.
+9. Selective disclosure hides selected values in the model evidence. The signed JWT still exposes metadata including issuer, subject, response ID, item types and call IDs, which the executor can see when the evidence is presented.
 
 ### Three questions this article does not answer
 

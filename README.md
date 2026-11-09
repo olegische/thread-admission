@@ -34,6 +34,7 @@ to this repository. This project does not depend on that repository at runtime.
 - [Assembled English draft](articles/tool_admission/tool_admission_v01.md)
 - [Ten source sections](articles/tool_admission/parts/)
 - [Editorial notes and draft status](articles/tool_admission/README.md)
+- [Executed checks and limits](articles/tool_admission/notes/executed-checks.md)
 
 Edit the section files, then rebuild:
 
@@ -51,6 +52,7 @@ environment activation is unnecessary.
 ```sh
 uv sync --locked
 uv run --locked python examples/run.py
+uv run --locked python examples/run_tool.py
 uv run --locked python scripts/check.py
 ```
 
@@ -69,8 +71,16 @@ disclosure packages to disk.
 | [sdjwt_evidence.py](examples/sdjwt_evidence.py) | Issue, present and verify selected claims using the reference SD-JWT library. |
 | [runtime_adapter.py](examples/runtime_adapter.py) | Match returned user/assistant messages to authenticated claims. |
 | [run.py](examples/run.py) | Run all examples using checked-in fixtures. |
+| [sdjwt.py](examples/sdjwt.py) | Issue, present and verify an SD-JWT for any profile; digest of the signed JWT. |
+| [digests.py](examples/digests.py) | Raw and canonical argument digests; digest and length of a JSON value. |
+| [model_calls.py](examples/model_calls.py) | Disclose chosen claims of chosen items of model-call evidence and verify such a presentation. |
+| [mcp.py](examples/mcp.py) | The accepted conversion of an MCP result into the model's input. |
+| [tool_evidence.py](examples/tool_evidence.py) | The tool statement profile and an executor that verifies the request, dispatches once and signs. |
+| [tool_record.py](examples/tool_record.py) | Link checks, the admission status and the receiving service's path for one tool record. |
+| [run_tool.py](examples/run_tool.py) | Run the tool admission example and its rejection table. |
+| [checks.py](examples/checks.py) | Assertions shared by the run scripts. |
 | [schemas/](schemas/) | JSON Schemas copied from the article. |
-| [fixtures/](fixtures/) | API call and App Server transcript used throughout the article. |
+| [fixtures/](fixtures/) | API call and App Server transcript used throughout the first article; `fixtures/tool/` holds the tool article's model calls, MCP results and tool catalog. |
 
 The standalone modules execute independently of Markdown. The check script also
 compares their function definitions, constants, schemas and fixtures with the

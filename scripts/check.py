@@ -10,6 +10,7 @@ from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 PARTS = ROOT / "articles/thread_admission/parts"
+TOOL_PARTS = ROOT / "articles/tool_admission/parts"
 
 
 def check_markdown_links():
@@ -55,8 +56,8 @@ def check_markdown_links():
     print(f"PASS: {count} relative Markdown links and images resolve", flush=True)
 
 
-def blocks(part, language):
-    return re.findall(rf"```{language}\n(.*?)```", (PARTS / part).read_text(), re.S)
+def blocks(part, language, parts=None):
+    return re.findall(rf"```{language}\n(.*?)```", ((parts or PARTS) / part).read_text(), re.S)
 
 
 def definitions(source):
@@ -69,6 +70,49 @@ def definitions(source):
                 if isinstance(target, ast.Name) and target.id.isupper():
                     result[target.id] = ast.dump(node, include_attributes=False)
     return result
+
+
+def check_tool_article():
+    """Tool admission: section 7 code, section 6 schema, section 3 digests, fixtures."""
+    published = definitions("\n".join(blocks("07-experiment.md", "python", TOOL_PARTS)))
+    standalone = {}
+    for module in ("digests.py", "mcp.py", "model_calls.py", "tool_record.py"):
+        standalone.update(definitions((ROOT / "examples" / module).read_text()))
+    for name, definition in published.items():
+        if standalone.get(name) != definition:
+            raise AssertionError(f"Article/code drift: {name}")
+    schema = json.loads((ROOT / "schemas/tool-call.schema.json").read_text())
+    if schema != json.loads(blocks("06-tool-statement.md", "json", TOOL_PARTS)[0]):
+        raise AssertionError("Article/schema drift: tool-call.schema.json")
+
+    section_three = (TOOL_PARTS / "03-flat-chain.md").read_text()
+    examples = re.findall(r"arguments:\s+(\S.*?)\nraw_sha256:\s+([0-9a-f]{64})\njcs_sha256:\s+([0-9a-f]{64})",
+                          section_three)
+    if len(examples) != 2:
+        raise AssertionError("Expected two argument digest examples in section 3")
+    sys.path.insert(0, str(ROOT / "examples"))
+    from digests import argument_digests
+    from mcp import model_input_for_mcp_result
+    for raw, raw_digest, jcs_digest in examples:
+        if argument_digests(raw) != {"raw_sha256": raw_digest, "jcs_sha256": jcs_digest}:
+            raise AssertionError(f"Section 3 digests do not match: {raw}")
+
+    call_1 = json.loads((ROOT / "fixtures/tool/model-call-1.json").read_text())
+    call_2 = json.loads((ROOT / "fixtures/tool/model-call-2.json").read_text())
+    result = json.loads((ROOT / "fixtures/tool/tool-result.json").read_text())
+    error = json.loads((ROOT / "fixtures/tool/tool-result-error.json").read_text())
+    request = call_1["output"][0]
+    if (request["type"] != "function_call" or request["arguments"] != examples[0][0]
+            or call_2["input"][:2] != [*call_1["input"], request]
+            or call_2["input"][2] != {"type": "function_call_output", "call_id": request["call_id"],
+                                      "output": model_input_for_mcp_result(result)}
+            or error.get("isError") is not True or result.get("isError") is not None):
+        raise AssertionError("Tool fixtures drift")
+    meta = json.loads(blocks("06-tool-statement.md", "json", TOOL_PARTS)[1])
+    if (meta["params"]["name"] != request["name"]
+            or meta["params"]["arguments"] != json.loads(request["arguments"])):
+        raise AssertionError("Section 6 request example differs from the tool fixtures")
+    print("PASS: tool article code, schema, digests and fixtures match the article", flush=True)
 
 
 def main():
@@ -130,10 +174,12 @@ def main():
             or not result["output"].endswith(execution["aggregatedOutput"])):
         raise AssertionError("API/runtime-fixture drift")
     print("PASS: standalone functions, constants, schemas and fixtures match the article", flush=True)
+    check_tool_article()
     for script, args in (
         ("articles/thread_admission/build.py", ["--check"]),
         ("articles/tool_admission/build.py", ["--check"]),
         ("examples/run.py", []),
+        ("examples/run_tool.py", []),
         ("articles/thread_admission/notes/check_sdjwt_example.py", []),
     ):
         subprocess.run([sys.executable, str(ROOT / script), *args], cwd=ROOT, check=True)

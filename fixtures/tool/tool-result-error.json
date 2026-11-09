@@ -1,0 +1,12 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Database connection error\n"
+    }
+  ],
+  "structuredContent": {
+    "exitCode": 1
+  },
+  "isError": true
+}

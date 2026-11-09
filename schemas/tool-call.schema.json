@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "vct",
+    "iss",
+    "sub",
+    "iat",
+    "call_id",
+    "tool_id",
+    "source_class",
+    "outcome",
+    "arguments",
+    "result"
+  ],
+  "properties": {
+    "vct": {
+      "type": "string"
+    },
+    "iss": {
+      "type": "string"
+    },
+    "sub": {
+      "type": "string"
+    },
+    "iat": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "call_id": {
+      "type": "string"
+    },
+    "tool_id": {
+      "type": "string"
+    },
+    "source_class": {
+      "enum": [
+        "observer",
+        "computation",
+        "generator"
+      ]
+    },
+    "outcome": {
+      "enum": [
+        "executed",
+        "refused",
+        "errored",
+        "cancelled"
+      ]
+    },
+    "model_call": {
+      "type": "object",
+      "required": [
+        "issuer_jwt_sha256"
+      ],
+      "properties": {
+        "issuer_jwt_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "caller_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "client_stated_purpose": {
+      "type": "string"
+    },
+    "arguments": {
+      "type": "object",
+      "required": [
+        "raw_sha256",
+        "jcs_sha256"
+      ],
+      "properties": {
+        "raw_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "jcs_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "result": {
+      "type": "object",
+      "required": [
+        "sha256",
+        "length"
+      ],
+      "properties": {
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "length": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

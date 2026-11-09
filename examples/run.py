@@ -8,25 +8,13 @@ from jwcrypto.jwk import JWK
 import rfc8785
 
 from call_index import record_call, verify_call
+from checks import rejects, require
 from data import load_json, read_json
 from dsse_envelope import sign_dsse, verified_dsse_payload
 from prefix import make_checkpoint, split_verified_prefix
 from runtime_adapter import match_text_messages
 from sdjwt_evidence import issue_call, present, verify_call_evidence
 from snapshot import matches_saved_snapshot
-
-
-def require(condition, message):
-    if not condition:
-        raise AssertionError(message)
-
-
-def rejects(action):
-    try:
-        action()
-    except ValueError:
-        return
-    raise AssertionError("Changed content was accepted")
 
 
 def main():

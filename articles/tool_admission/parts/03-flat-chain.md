@@ -39,15 +39,15 @@ Results also need a shared representation. If the runtime transforms the executo
 
 ### Identifying the execution
 
-In our proposed profile, the client sends the proxy's evidence with the tool call, disclosing the tool name and arguments needed for the check. The executor verifies the evidence, checks the requested tool and arguments, and records a reference to the proxy's signed evidence and `call_id` in its own statement. It also assigns an ID to the execution.
+In our proposed profile, the client sends the proxy's evidence with the tool call, disclosing the tool name and arguments needed for the check. The executor verifies the evidence, checks the requested tool and arguments, and records a reference to the proxy's signed evidence and `call_id` in its own statement.
 
 ```text
 Proxy evidence:   call-1 and python export.py disclosed from the model call
-Tool evidence:    reference to the proxy's evidence, call-1, execution exec-1
+Tool evidence:    reference to the proxy's evidence, call-1
 ```
 
 When the thread returns, the service verifies both statements, checks the reference and compares the covered values. The model-evidence issuer does not need to know about the tool statement. A similar link from an execution record to a request attestation was proposed in the [SEP-2817 discussion](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2817).
 
-The executor handles repeated requests for the same model call under an explicit retry rule, so it does not silently dispatch multiple executions for that call. The reference records the executor's account of the request it processed. The result comparison establishes what was shown to the model; it cannot trace the physical path taken by identical bytes through the client.
+Once an executor has issued a statement for a model call, presenting the same evidence and `call_id` again returns that statement without executing the call again. A new tool call in the runtime has a new `call_id` and receives its own statement. The reference records the executor's account of the request it processed. The result comparison establishes what was shown to the model; it cannot trace the physical path taken by identical bytes through the client.
 
 The next section uses these checks to decide what the service can retain as history and how it can use the result.

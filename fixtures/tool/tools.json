@@ -1,0 +1,5 @@
+{
+  "run_command": {"tool_id": "run_command", "source_class": "computation"},
+  "read_sensor": {"tool_id": "read_sensor", "source_class": "observer"},
+  "predict_temperature": {"tool_id": "predict_temperature", "source_class": "generator"}
+}
