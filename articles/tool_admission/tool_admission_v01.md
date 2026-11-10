@@ -14,13 +14,13 @@ A related issue came up in an [MCP discussion](https://github.com/modelcontextpr
 
 MCP proposals describe records a service can use: a [signed statement of what was requested](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2787) and a [record of what the executing side decided and returned](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2828).
 
-We will examine how a receiving service can compare evidence from the model call and the tool executor: which call the result belongs to, what the executor reported and what the model received. When evidence is missing, the service still needs a rule for retaining and using the record. We call this decision tool admission. The executor is the party that processed the tool call and returned the result; the service's policy decides whether what has been established is sufficient for the next action.
+We will examine how a receiving service can compare evidence from the model call and from the tool executor, the party that processed the tool call and returned the result. The comparison answers three questions: which call the result belongs to, what the executor reported and what the model received. When evidence is missing, the service still needs a rule for retaining and using the record. We call this decision tool admission. The service's policy decides whether what has been established is sufficient for the next action.
 
 ## What a saved history can establish
 
 ### Continuing from a history
 
-Durable execution systems use saved histories to resume workflows after interruptions. One such system is [Temporal](https://docs.temporal.io/workflow-execution/event). Its history contains events such as activity results, signals and timers. An activity is work a worker performs for the workflow: it might run tests and return an exit code. Temporal records the result in the history. During replay, the workflow code runs against the saved events and must produce matching commands; a mismatch raises a nondeterminism error. Completed activities are not run again: their recorded results are supplied to the workflow.
+Durable execution systems use saved histories to resume workflows after interruptions. One such system is [Temporal](https://docs.temporal.io/workflow-execution/event). Its history contains events such as activity results, signals and timers. An activity is work a worker performs for the workflow: it might run tests and return an exit code. Temporal records the result in the history. During replay, the workflow code runs against the saved events and must produce matching commands. A mismatch raises a nondeterminism error. Completed activities are not run again: their recorded results are supplied to the workflow.
 
 Temporal can also [import history from another cluster](https://github.com/temporalio/temporal/blob/235e89468e3338f2ced467406a9a87ec12e030b7/service/history/replication/eventhandler/event_importer.go). The importer checks the history branch and [the sequence of event IDs](https://github.com/temporalio/temporal/blob/235e89468e3338f2ced467406a9a87ec12e030b7/service/history/ndc/replication_task.go), then uses the events to reconstruct workflow state. In a deployment where the service and workers operate within one trust boundary, the operator controls which workers can return activity results. The workflow continues using the results recorded by that system. A person establishes that trust boundary by deciding which participants the deployment accepts.
 
@@ -30,8 +30,8 @@ Our service may receive a thread with results from tool executors it did not ope
 
 An agent can use MCP to call a tool operated by another party. When someone later reads the record of that call, they need to know why the client made the request, what it asked for and what the executing side returned. Three proposals from the MCP community describe records for these parts of the call:
 
-- [SEP-2817](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2817) carries context supplied by the client, such as the reason for the call and the conversation turn it belongs to. It helps explain the call; it does not establish that the call was authorized or executed.
-- [SEP-2787](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2787) proposes a signed attestation of the request: the tool, its arguments and the declared purpose. The attestation identifies what was requested; execution needs its own record.
+- [SEP-2817](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2817) carries context supplied by the client, such as the reason for the call and the conversation turn it belongs to. It helps explain the call but does not establish that the call was authorized or executed.
+- [SEP-2787](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2787) proposes a signed attestation of the request: the tool, its arguments and the declared purpose. The attestation identifies what was requested. Execution needs its own record.
 - [SEP-2828](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2828) proposes records from the executing side: a decision before the operation and an outcome after it, linked to the request. A verifier can check the signatures and links without having been present at the call.
 
 A signed outcome lets a receiving service check which issuer made a statement about a result and whether the statement has changed. The service still needs a reason to accept that issuer's statement. The [SEP-2828 verifier discussion](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2828) makes the issuer's key and the chain part of that decision.
@@ -40,11 +40,11 @@ A signed outcome lets a receiving service check which issuer made a statement ab
 
 The records above need to identify who supplied each value, what call and result they describe, and which checks were performed. Existing formats provide mechanisms for these jobs:
 
-- **Who supplied a value.** A client can explain why it requested a tool call; the executor can report what it returned. [SLSA Provenance](https://slsa.dev/spec/v1.0/provenance) makes a similar distinction for builds, separating parameters supplied by the invoker from those controlled by the builder.
+- **Who supplied a value.** A client can explain why it requested a tool call, and the executor can report what it returned. [SLSA Provenance](https://slsa.dev/spec/v1.0/provenance) makes a similar distinction for builds, separating parameters supplied by the invoker from those controlled by the builder.
 - **Which data a statement describes.** A call ID helps find related records. To compare their contents, an [in-toto Statement](https://github.com/in-toto/attestation/blob/main/spec/v1/statement.md) identifies its subject by a digest. We will compare digests of the arguments and result to link an executor's statement to the returned thread.
-- **Which checks ran.** A missing check and a check that allowed an operation have different meanings. [XACML](https://docs.oasis-open.org/xacml/3.0/xacml-3.0-core-spec-os-en.html) defines decision outcomes; a [SLSA Verification Summary Attestation](https://slsa.dev/spec/v1.0/verification_summary) records a verification result, its policy and input attestations.
+- **Which checks ran.** A missing check and a check that allowed an operation have different meanings. [XACML](https://docs.oasis-open.org/xacml/3.0/xacml-3.0-core-spec-os-en.html) defines decision outcomes. A [SLSA Verification Summary Attestation](https://slsa.dev/spec/v1.0/verification_summary) records a verification result, its policy and input attestations.
 
-The binding also needs to cover what the executor actually received and returned. Arguments can change between recording a request and running it. The discussion of SEP-2817 calls for recomputing the binding at execution; the receiving service relies on the executor's statement about what it covered.
+The binding also needs to cover what the executor actually received and returned. Arguments can change between recording a request and running it. The discussion of SEP-2817 calls for recomputing the binding at execution. The receiving service relies on the executor's statement about what it covered.
 
 ### How the executor obtained the result
 
@@ -77,20 +77,20 @@ result:       hash of {"content":[{"type":"text","text":"Wrote export.csv (128 r
                        "structuredContent":{"exitCode":0}}
 ```
 
-The executor signs these claims and makes the statement available with the thread. The reference identifies the proxy's evidence presented with the request. In this example the executor declares that the output was computed; the receiving service decides whether to accept that claim. A signature identifies the issuer, who can also sign a false account; a transparency log makes that statement durable and attributable. The [tool evidence profile](parts/06-tool-statement.md) specifies the full statement and its schema.
+The executor signs these claims and makes the statement available with the thread. The reference identifies the proxy's evidence presented with the request. In this example the executor declares that the output was computed, and the receiving service decides whether to accept that claim. A signature identifies the issuer, who can also sign a false account. A transparency log makes that statement durable and attributable. The [tool evidence profile](parts/06-tool-statement.md) specifies the full statement and its schema.
 
 When the thread returns, the service checks signatures from issuers it accepts and compares the evidence: did the executor receive the arguments requested by the model, and was the result the executor reported sent to the model? A mismatch tells it that the values covered by the statements differ. We will work through these checks in the next section.
 
-The executor can attest to what it observed; checking the work of its backends requires evidence from those parties. The `source_class` claim describes how the executor obtained the result. The service uses that claim in its policy and may set its own class for a tool.
+The executor can attest to what it observed. Checking the work of its backends requires evidence from those parties. The `source_class` claim describes how the executor obtained the result. The service uses that claim in its policy and may set its own class for a tool.
 
 Depending on the evidence available, the service reaches four outcomes:
 
-- **Restored:** both statements are available and their links pass; the record is restored as prior history.
-- **Produced:** the executor reported the result; whether the model saw it is unknown.
-- **Shown:** the result was sent to the model; its producer is not established.
-- **Supplied:** no evidence is available; the record remains supplied context.
+- **Restored:** both statements are available and their links pass, so the record is restored as prior history.
+- **Produced:** the executor reported the result, and whether the model saw it is unknown.
+- **Shown:** the result was sent to the model, and its producer is not established.
+- **Supplied:** no evidence is available, so the record remains supplied context.
 
-Our example uses [SD-JWT](https://www.rfc-editor.org/rfc/rfc9901) for the tool statement, allowing the holder to disclose selected claims. Other issuers can use their own formats; each statement is checked according to its format.
+Our example uses [SD-JWT](https://www.rfc-editor.org/rfc/rfc9901) for the tool statement, allowing the holder to disclose selected claims. Other issuers can use their own formats. Each statement is checked according to its format.
 
 ## Checking the evidence
 
@@ -107,7 +107,7 @@ Model received:       exit code 0, Wrote export.csv (128 rows).
 
 Both statements can pass signature verification: the executor signed the result it returned, and the proxy signed the result sent to the model. By comparing them, the service detects the mismatch.
 
-The service also compares the arguments requested by the model with those received by the executor. Each issuer uses its own statement format; the service verifies both and compares the values they cover.
+The service also compares the arguments requested by the model with those received by the executor. Each issuer uses its own statement format. The service verifies both and compares the values they cover.
 
 ### Comparing arguments
 
@@ -127,7 +127,7 @@ raw_sha256:   d311518038a03519783d990a9720c7865a4ee70287244ceaf49dd0b3dee2e556
 jcs_sha256:   f272be5ff717e09cbabf10f946c667892bd94b0f5bbe36cac5e491de0eea642f
 ```
 
-The raw hash lets the service check the original string; the canonical hash lets it compare parsed objects despite formatting differences. Our profile requires both, so an executor using it must receive the original string. An executor that receives only a parsed object can issue evidence in another format; the service then uses a comparison supported by that evidence.
+The raw hash lets the service check the original string, and the canonical hash lets it compare parsed objects despite formatting differences. Our profile requires both, so an executor using it must receive the original string. An executor that receives only a parsed object can issue evidence in another format. The service then uses a comparison supported by that evidence.
 
 Results also need a shared representation. If the runtime transforms the executor's result before sending it to the model, the service needs to account for that transformation. Section 5 shows how it can repeat a known rule and compare the resulting string with the model evidence.
 
@@ -142,7 +142,7 @@ Tool evidence:    reference to the proxy's evidence, call-1
 
 When the thread returns, the service verifies both statements, checks the reference and compares the covered values. The model-evidence issuer does not need to know about the tool statement. A similar link from an execution record to a request attestation was proposed in the [SEP-2817 discussion](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2817).
 
-Once an executor has issued a statement for a model call, presenting the same evidence and `call_id` again returns that statement without executing the call again. A new tool call in the runtime has a new `call_id` and receives its own statement. The reference records the executor's account of the request it processed. The result comparison establishes what was shown to the model; it cannot trace the physical path taken by identical bytes through the client.
+Once an executor has issued a statement for a model call, presenting the same evidence and `call_id` again returns that statement without executing the call again. A new tool call in the runtime has a new `call_id` and receives its own statement. The reference records the executor's account of the request it processed. The result comparison establishes what was shown to the model. It cannot trace the physical path taken by identical bytes through the client.
 
 The next section uses these checks to decide what the service can retain as history and how it can use the result.
 
@@ -154,21 +154,21 @@ Here is one way a runtime could construct that input:
 
 **Restored.** The service has accepted the evidence and the link between the model's request, the executor's result and what the model was shown. The runtime retains the original tool call and result, along with subsequent assistant messages that pass their own checks. If every record in the returned thread meets the service's restoration rules, the runtime sends the returned history in its original roles. If the agent needs `export.csv` now, it can check whether the file is still available.
 
-**Shown.** Model evidence shows that the result was sent to the model; the executor has not been established. The runtime removes the call and result from the restored tool history. It places an account of them in a new `user` message: the earlier model saw a success message, and the execution is unconfirmed. Later assistant messages may have relied on that result; the runtime includes their checked text in the same account.
+**Shown.** Model evidence shows that the result was sent to the model. The executor has not been established. The runtime removes the call and result from the restored tool history. It places an account of them in a new `user` message: the earlier model saw a success message, and the execution is unconfirmed. Later assistant messages may have relied on that result, so the runtime includes their checked text in the same account.
 
-A tool statement carried with the thread must be preserved by each intermediary. If it is lost, the service has lost evidence; when model evidence still covers the result, the record becomes Shown.
+A tool statement carried with the thread must be preserved by each intermediary. If it is lost, the service has lost evidence. When model evidence still covers the result, the record becomes Shown.
 
 **Produced.** Accepted tool evidence reports the result, but the service does not know whether the previous model received it. The runtime places the executor's report in a new `user` message as information about prior work and states that the model's receipt is unknown. It includes later assistant messages as an account of the returned history, with that gap made clear.
 
-**Supplied.** The result has no accepted model or tool evidence. The runtime places the call and result in a new `user` message as claims from the returned thread. It includes later assistant messages in the account with the missing evidence identified; it attributes their text to the model only if model evidence verifies it.
+**Supplied.** The result has no accepted model or tool evidence. The runtime places the call and result in a new `user` message as claims from the returned thread. It includes later assistant messages in the account with the missing evidence identified. It attributes their text to the model only if model evidence verifies it.
 
 ### When evidence conflicts
 
-The service may have both statements but find no accepted link between them, or the covered results may differ. In the example from the previous section, the executor reported a failure and the model saw a success message. The runtime can include both facts and the discrepancy in the history account; its policy can require checking the export before working with the file.
+The service may have both statements but find no accepted link between them, or the covered results may differ. In the example from the previous section, the executor reported a failure and the model saw a success message. The runtime can include both facts and the discrepancy in the history account. Its policy can require checking the export before working with the file.
 
 A verified assistant response establishes what the model said. If it says the export succeeded after receiving an unverified result, the account retains that context. When the next action depends on a tool result, the service applies its policy, including any rules for the issuer and `source_class`.
 
-Evidence establishes origin and integrity relative to an issuer; the service separately decides whether the content is acceptable. Everything entering a model call passes through the service's input safeguards, regardless of evidence. When the service itself was the executor and applied its safeguards at execution time, restoring the record brings back a result it has already screened.
+Evidence establishes origin and integrity relative to an issuer. The service separately decides whether the content is acceptable. Everything entering a model call passes through the service's input safeguards, regardless of evidence. When the service itself was the executor and applied its safeguards at execution time, restoring the record brings back a result it has already screened.
 
 ## From the tool result to the model
 
@@ -189,9 +189,9 @@ The executor signs a statement containing a hash of this complete result. The ru
 {"temperature":22.5}
 ```
 
-The proxy's evidence covers the string sent to the model. To compare it with the result covered by the executor, the receiving service needs the full result and a rule for the conversion. In this example, the rule takes the text from the single `content` block. The service checks the full result against the executor's hash, applies the rule and compares its output with the string in the proxy's evidence. The executor's statement also covers `structuredContent`; this rule sends the text block to the model.
+The proxy's evidence covers the string sent to the model. To compare it with the result covered by the executor, the receiving service needs the full result and a rule for the conversion. In this example, the rule takes the text from the single `content` block. The service checks the full result against the executor's hash, applies the rule and compares its output with the string in the proxy's evidence. The executor's statement also covers `structuredContent`. This rule sends the text block to the model.
 
-The service must know and accept the rule. A runtime can transform a result in many ways; a rule that produces a matching string still needs to be suitable for the service's policy. For example, the service must consider how a rule handles errors before accepting it. The same approach can cover truncation when the rule and the full result allow the service to reproduce the text shown to the model.
+The service must know and accept the rule. A runtime can transform a result in many ways. A rule that produces a matching string still needs to be suitable for the service's policy. For example, the service must consider how a rule handles errors before accepting it. The same approach can cover truncation when the rule and the full result allow the service to reproduce the text shown to the model.
 
 The runnable example in sections 7 and 8 uses this rule for an MCP result with one text block. It verifies the full result and compares the converted text with the proxy's evidence. Other result shapes and conversions need their own accepted rules.
 
@@ -199,20 +199,20 @@ The runnable example in sections 7 and 8 uses this rule for an MCP result with o
 
 For our profile we use [SD-JWT](https://www.rfc-editor.org/rfc/rfc9901), so the holder can disclose selected claims. A complete statement can also be carried in a DSSE envelope when selective disclosure is not needed.
 
-The [SD-JWT VC draft](https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/) defines `typ: dc+sd-jwt` and a `vct` claim that identifies the credential type. Our example uses `https://thread-admission.example/tool-call/v1` for the tool statement and checks this value against a constant. The profile provides for Type Metadata to describe its claims, including which are required and which may be selectively disclosed; `vct#integrity` can protect the referenced document. Model-call evidence keeps its own issuer and format.
+The [SD-JWT VC draft](https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/) defines `typ: dc+sd-jwt` and a `vct` claim that identifies the credential type. Our example uses `https://thread-admission.example/tool-call/v1` for the tool statement and checks this value against a constant. The profile provides for Type Metadata to describe its claims, including which are required and which may be selectively disclosed. `vct#integrity` can protect the referenced document. Model-call evidence keeps its own issuer and format.
 
 The tool statement includes:
 
 - **Issuer and call:** `iss`, `sub`, `iat`, `call_id` and `tool_id`. These identify the executor, the account on whose behalf it ran, the time, the call and the tool.
-- **Origin and execution:** optional `model_call` references the proxy's signed model-call evidence. Optional `caller_id` records the client identity authenticated by the executor; `client_stated_purpose` records an explanation provided by that client.
+- **Origin and execution:** optional `model_call` references the proxy's signed model-call evidence. Optional `caller_id` records the client identity authenticated by the executor. `client_stated_purpose` records an explanation provided by that client.
 - **Outcome and method:** `outcome` and `source_class`. The outcome is `executed`, `refused`, `errored` or `cancelled`.
 - **Arguments and result:** digests of the arguments and result, with the result's byte length. These can be selectively disclosed. The evidence-checking section explains why the arguments have two digests.
 
 Claims such as `iss`, `sub` and `iat` have registered meanings. The tool-specific names, including `source_class`, `tool_id`, `call_id`, `outcome`, `arguments` and `result`, are defined by our profile and interpreted under the statement's `vct`. For a linked call, the issuer, model-evidence digest and `call_id` identify the execution under the replay rule. The schema can be extended with `txn` for a transaction identifier, `cnf` for holder key binding, `status` for revocation and `jti` to identify the statement. `call_id` remains the identifier relayed from the model. We do not use the registered names `amr`, `acr`, `vot`, `vtm`, `events` or `attest` for these values.
 
-The `model_call` field is optional, so an executor can issue a statement without a model link. For Restored, the service needs that link, the model evidence and the result checks. `client_stated_purpose` carries the client's explanation, and `caller_id` is included when the executor has authenticated the client; authorization is decided separately.
+The `model_call` field is optional, so an executor can issue a statement without a model link. For Restored, the service needs that link, the model evidence and the result checks. `client_stated_purpose` carries the client's explanation, and `caller_id` is included when the executor has authenticated the client. Authorization is decided separately.
 
-The schema below is for full-result verification. It requires a digest and length for every terminal outcome, including refusal, error, confirmed cancellation and empty output. The executor attests to a cancellation it observed; the client records a timeout or cancellation request it observed. A presentation without result disclosure, for example for audit, needs separate validation rules. The [example implementation](../../examples/run_tool.py) is in the companion repository.
+The schema below is for full-result verification. It requires a digest and length for every terminal outcome, including refusal, error, confirmed cancellation and empty output. The executor attests to a cancellation it observed. The client records a timeout or cancellation request it observed. A presentation without result disclosure, for example for audit, needs separate validation rules. The [example implementation](../../examples/run_tool.py) is in the companion repository.
 
 ```json
 {
@@ -262,13 +262,13 @@ The schema below is for full-result verification. It requires a digest and lengt
 }
 ```
 
-The `result` field carries the digest and length of the complete `CallToolResult` encoded in JCS. A tool error carries `isError` in that result. The example issues statements for successful results and errors. `cnf` and `status` are omitted from this schema; they concern holder binding and revocation.
+The `result` field carries the digest and length of the complete `CallToolResult` encoded in JCS. A tool error carries `isError` in that result. The example issues statements for successful results and errors. `cnf` and `status` are omitted from this schema. They concern holder binding and revocation.
 
 ### Linking the model call and tool result
 
-For the MCP example, `result.sha256` and `result.length` cover the UTF-8 bytes of the complete `CallToolResult` encoded in JCS, including `content` and `structuredContent` when present. The holder keeps the full result for the receiver to check. The statement travels separately; it and the JSON-RPC wrapper are outside the hashed object.
+For the MCP example, `result.sha256` and `result.length` cover the UTF-8 bytes of the complete `CallToolResult` encoded in JCS, including `content` and `structuredContent` when present. The holder keeps the full result for the receiver to check. The statement travels separately. It and the JSON-RPC wrapper are outside the hashed object.
 
-To link the execution to the model call, the client presents the proxy's evidence, disclosing the tool name and arguments from one `function_call`. The verifier in the first article required every field to be disclosed. Here the selective presentation is checked against a schema in which selectively disclosable fields are optional; the executor separately requires the tool name and arguments so it can compare them with the request.
+To link the execution to the model call, the client presents the proxy's evidence, disclosing the tool name and arguments from one `function_call`. The verifier in the first article required every field to be disclosed. Here the selective presentation is checked against a schema in which selectively disclosable fields are optional. The executor separately requires the tool name and arguments so it can compare them with the request.
 
 The signed JWT still exposes metadata to the executor, including the issuer, subject, response ID, item types and call IDs.
 
@@ -311,7 +311,7 @@ The client can later present the receiver with the same signed JWT and an additi
 }
 ```
 
-The values in angle brackets stand for the encoded JWT, disclosures, hash and tool statement. The receiver hashes the signed JWT and compares it with `issuer_jwt_sha256`. Both presentations refer to the same signed JWT, so the additional disclosure does not change that hash. The `_meta` key and the receiver's JSON wrapper illustrate application choices; the code example does not exercise them.
+The values in angle brackets stand for the encoded JWT, disclosures, hash and tool statement. The receiver hashes the signed JWT and compares it with `issuer_jwt_sha256`. Both presentations refer to the same signed JWT, so the additional disclosure does not change that hash. The `_meta` key and the receiver's JSON wrapper illustrate application choices. The code example does not exercise them.
 
 ## During the conversation
 
@@ -389,7 +389,7 @@ The example also checks how the executor and client handle incorrect requests an
 - **Unknown `call_id`:** the client cannot prepare a presentation for a call absent from the signed model response.
 - **Replayed evidence:** the same executor receives the evidence twice, runs the handler once and returns the same statement.
 
-The record of issued statements is held in memory and checked within one process. An executor operating across restarts or in parallel must durably store the model-evidence digest and `call_id` and coordinate access. If a failure occurs between execution and recording, the executor may not know whether the operation ran; it must retain that uncertainty rather than execute again.
+The record of issued statements is held in memory and checked within one process. An executor operating across restarts or in parallel must durably store the model-evidence digest and `call_id` and coordinate access. If a failure occurs between execution and recording, the executor may not know whether the operation ran. It must retain that uncertainty rather than execute again.
 
 After the conversation, the client can keep the thread with the model and tool evidence. The example passes the record in memory to simulate its return.
 
@@ -446,9 +446,9 @@ def admit_tool_record(record, config):
     return {**decision, "checks": checks, "reference": reference_ok, "rejected": rejected, "tool": tool}
 ```
 
-A presentation that fails verification is recorded as rejected and treated as absent; the service assigns the record a status based on the evidence that remains.
+A presentation that fails verification is recorded as rejected and treated as absent. The service assigns the record a status based on the evidence that remains.
 
-The comparison has three parts: the arguments requested by the model against the two digests from section 3; the full MCP result against its digest and length from section 6; and the string shown to the model against the result transformed by the rule from section 5. `link_checks` performs these comparisons. The helper `argument_digests` computes the two argument digests, and `commitment` computes a result's digest and length. `model_input_for_mcp_result` applies the conversion rule: it takes the text from one text block and adds an error prefix if `isError` is true. The rule is designed for one text block. If the result contains, for example, multiple blocks or an image, the comparison requires another conversion rule. The service selects rules under its own policy; the example does not execute rules supplied with the returned thread. `find_call_item` selects one item by `call_id` and returns `None` if there is no match or more than one.
+The comparison has three parts. It compares the arguments requested by the model with the two digests from section 3. It checks the full MCP result against its digest and length from section 6. Finally, it compares the string shown to the model with the result transformed by the rule from section 5. `link_checks` performs these comparisons. The helper `argument_digests` computes the two argument digests, and `commitment` computes a result's digest and length. `model_input_for_mcp_result` applies the conversion rule: it takes the text from one text block and adds an error prefix if `isError` is true. The rule is designed for one text block. If the result contains, for example, multiple blocks or an image, the comparison requires another conversion rule. The service selects rules under its own policy. The example does not execute rules supplied with the returned thread. `find_call_item` selects one item by `call_id` and returns `None` if there is no match or more than one.
 
 ```python
 from hashlib import sha256
@@ -538,22 +538,22 @@ For the matching fixtures, the reference and all three comparisons pass, and the
 
 The code runs the matching case and 30 rejection and boundary checks: six before the record returns and 24 in the receiving phase. The [results note](notes/executed-checks.md) records the run and its versions. Among the receiving-side cases:
 
-- **Changed result.** The executor signs a database error and the proxy signs a success message shown to the model. Both signatures verify; the result comparison fails, and the service returns Shown with a `result` discrepancy.
+- **Changed result.** The executor signs a database error and the proxy signs a success message shown to the model. Both signatures verify, but the result comparison fails, and the service returns Shown with a `result` discrepancy.
 - **Changed arguments or reference.** A signed statement over different arguments fails the argument check. A statement that references a different model call fails the reference check.
 - **Missing or different model evidence.** An unlinked statement is Produced without model evidence and Shown when model evidence covers the result. Evidence signed by an unknown key fails verification.
-- **Different call or issuer.** A statement for another `call_id` is not linked. An unknown issuer's statement is rejected; a second accepted issuer's statement is checked separately.
+- **Different call or issuer.** A statement for another `call_id` is not linked. An unknown issuer's statement is rejected. A second accepted issuer's statement is checked separately.
 - **Result and conversion.** Changing the full result fails its commitment check. Changed model input fails the result comparison. An unsupported two-block result leaves that comparison unavailable.
-- **Missing evidence.** A record without a tool statement is Shown when model evidence covers it; a record without either kind of evidence is Supplied.
-- **Source class.** The `run_command` and `predict_command_output` fixtures return the same `Wrote export.csv (128 rows).` text; the first declares `computation` and the second `generator`. Both records are Restored. A policy requiring evidence that the export was executed accepts the first claim and does not accept the second as grounds, as in the `Tests passed` example in section 1.
-- **Statement validation.** Removing `source_class` or `result`, using an unknown class, outcome or `vct`, adding an extra claim, setting `iat` in the future, withholding the result or changing a disclosure is rejected. JSON Schema requires `source_class`; the example does not mark it for selective disclosure.
+- **Missing evidence.** A record without a tool statement is Shown when model evidence covers it. A record without either kind of evidence is Supplied.
+- **Source class.** The `run_command` and `predict_command_output` fixtures return the same `Wrote export.csv (128 rows).` text. The first declares `computation` and the second `generator`. Both records are Restored. A policy requiring evidence that the export was executed accepts the first claim and does not accept the second as grounds, as in the `Tests passed` example in section 1.
+- **Statement validation.** Removing `source_class` or `result`, using an unknown class, outcome or `vct`, adding an extra claim, setting `iat` in the future, withholding the result or changing a disclosure is rejected. JSON Schema requires `source_class`. The example does not mark it for selective disclosure.
 
-The run shows four things. Without a tool statement, a result cannot be told from a substituted one, however valid the model evidence that covers it. Comparing the values covered by the two statements detects a substitution between the model call and the executor. The receiver can repeat the conversion rule it accepts and compare the resulting string with the model evidence. Restored answers what the model was shown, not whether the result may serve as grounds; that question needs the source class and the receiver's policy.
+The run shows four things. Without a tool statement, a result cannot be told from a substituted one, however valid the model evidence that covers it. Comparing the values covered by the two statements detects a substitution between the model call and the executor. The receiver can repeat the conversion rule it accepts and compare the resulting string with the model evidence. Restored establishes what the model was shown. To decide whether the result may serve as grounds for an action, the service uses the source class and its policy.
 
 ### Limits of the example
 
 The proxy signs fixtures, and the executor and receiving service run in process. The JSON-RPC wrapper and `_meta` field illustrated in section 6 are not exercised.
 
-The verifier checks `vct` against a constant; no Type Metadata document is published for this example. The `sd-jwt` library limitation described in the first article remains: version `0.10.4` accepts unreferenced disclosures. The run does not exercise a real runtime's thread export and re-import.
+The verifier checks `vct` against a constant. No Type Metadata document is published for this example. The `sd-jwt` library limitation described in the first article remains: version `0.10.4` accepts unreferenced disclosures. The run does not exercise a real runtime's thread export and re-import.
 
 ## Conclusion
 

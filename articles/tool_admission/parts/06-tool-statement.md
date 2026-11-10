@@ -2,20 +2,20 @@
 
 For our profile we use [SD-JWT](https://www.rfc-editor.org/rfc/rfc9901), so the holder can disclose selected claims. A complete statement can also be carried in a DSSE envelope when selective disclosure is not needed.
 
-The [SD-JWT VC draft](https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/) defines `typ: dc+sd-jwt` and a `vct` claim that identifies the credential type. Our example uses `https://thread-admission.example/tool-call/v1` for the tool statement and checks this value against a constant. The profile provides for Type Metadata to describe its claims, including which are required and which may be selectively disclosed; `vct#integrity` can protect the referenced document. Model-call evidence keeps its own issuer and format.
+The [SD-JWT VC draft](https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/) defines `typ: dc+sd-jwt` and a `vct` claim that identifies the credential type. Our example uses `https://thread-admission.example/tool-call/v1` for the tool statement and checks this value against a constant. The profile provides for Type Metadata to describe its claims, including which are required and which may be selectively disclosed. `vct#integrity` can protect the referenced document. Model-call evidence keeps its own issuer and format.
 
 The tool statement includes:
 
 - **Issuer and call:** `iss`, `sub`, `iat`, `call_id` and `tool_id`. These identify the executor, the account on whose behalf it ran, the time, the call and the tool.
-- **Origin and execution:** optional `model_call` references the proxy's signed model-call evidence. Optional `caller_id` records the client identity authenticated by the executor; `client_stated_purpose` records an explanation provided by that client.
+- **Origin and execution:** optional `model_call` references the proxy's signed model-call evidence. Optional `caller_id` records the client identity authenticated by the executor. `client_stated_purpose` records an explanation provided by that client.
 - **Outcome and method:** `outcome` and `source_class`. The outcome is `executed`, `refused`, `errored` or `cancelled`.
 - **Arguments and result:** digests of the arguments and result, with the result's byte length. These can be selectively disclosed. The evidence-checking section explains why the arguments have two digests.
 
 Claims such as `iss`, `sub` and `iat` have registered meanings. The tool-specific names, including `source_class`, `tool_id`, `call_id`, `outcome`, `arguments` and `result`, are defined by our profile and interpreted under the statement's `vct`. For a linked call, the issuer, model-evidence digest and `call_id` identify the execution under the replay rule. The schema can be extended with `txn` for a transaction identifier, `cnf` for holder key binding, `status` for revocation and `jti` to identify the statement. `call_id` remains the identifier relayed from the model. We do not use the registered names `amr`, `acr`, `vot`, `vtm`, `events` or `attest` for these values.
 
-The `model_call` field is optional, so an executor can issue a statement without a model link. For Restored, the service needs that link, the model evidence and the result checks. `client_stated_purpose` carries the client's explanation, and `caller_id` is included when the executor has authenticated the client; authorization is decided separately.
+The `model_call` field is optional, so an executor can issue a statement without a model link. For Restored, the service needs that link, the model evidence and the result checks. `client_stated_purpose` carries the client's explanation, and `caller_id` is included when the executor has authenticated the client. Authorization is decided separately.
 
-The schema below is for full-result verification. It requires a digest and length for every terminal outcome, including refusal, error, confirmed cancellation and empty output. The executor attests to a cancellation it observed; the client records a timeout or cancellation request it observed. A presentation without result disclosure, for example for audit, needs separate validation rules. The [example implementation](../../../examples/run_tool.py) is in the companion repository.
+The schema below is for full-result verification. It requires a digest and length for every terminal outcome, including refusal, error, confirmed cancellation and empty output. The executor attests to a cancellation it observed. The client records a timeout or cancellation request it observed. A presentation without result disclosure, for example for audit, needs separate validation rules. The [example implementation](../../../examples/run_tool.py) is in the companion repository.
 
 ```json
 {
@@ -65,13 +65,13 @@ The schema below is for full-result verification. It requires a digest and lengt
 }
 ```
 
-The `result` field carries the digest and length of the complete `CallToolResult` encoded in JCS. A tool error carries `isError` in that result. The example issues statements for successful results and errors. `cnf` and `status` are omitted from this schema; they concern holder binding and revocation.
+The `result` field carries the digest and length of the complete `CallToolResult` encoded in JCS. A tool error carries `isError` in that result. The example issues statements for successful results and errors. `cnf` and `status` are omitted from this schema. They concern holder binding and revocation.
 
 ### Linking the model call and tool result
 
-For the MCP example, `result.sha256` and `result.length` cover the UTF-8 bytes of the complete `CallToolResult` encoded in JCS, including `content` and `structuredContent` when present. The holder keeps the full result for the receiver to check. The statement travels separately; it and the JSON-RPC wrapper are outside the hashed object.
+For the MCP example, `result.sha256` and `result.length` cover the UTF-8 bytes of the complete `CallToolResult` encoded in JCS, including `content` and `structuredContent` when present. The holder keeps the full result for the receiver to check. The statement travels separately. It and the JSON-RPC wrapper are outside the hashed object.
 
-To link the execution to the model call, the client presents the proxy's evidence, disclosing the tool name and arguments from one `function_call`. The verifier in the first article required every field to be disclosed. Here the selective presentation is checked against a schema in which selectively disclosable fields are optional; the executor separately requires the tool name and arguments so it can compare them with the request.
+To link the execution to the model call, the client presents the proxy's evidence, disclosing the tool name and arguments from one `function_call`. The verifier in the first article required every field to be disclosed. Here the selective presentation is checked against a schema in which selectively disclosable fields are optional. The executor separately requires the tool name and arguments so it can compare them with the request.
 
 The signed JWT still exposes metadata to the executor, including the issuer, subject, response ID, item types and call IDs.
 
@@ -114,4 +114,4 @@ The client can later present the receiver with the same signed JWT and an additi
 }
 ```
 
-The values in angle brackets stand for the encoded JWT, disclosures, hash and tool statement. The receiver hashes the signed JWT and compares it with `issuer_jwt_sha256`. Both presentations refer to the same signed JWT, so the additional disclosure does not change that hash. The `_meta` key and the receiver's JSON wrapper illustrate application choices; the code example does not exercise them.
+The values in angle brackets stand for the encoded JWT, disclosures, hash and tool statement. The receiver hashes the signed JWT and compares it with `issuer_jwt_sha256`. Both presentations refer to the same signed JWT, so the additional disclosure does not change that hash. The `_meta` key and the receiver's JSON wrapper illustrate application choices. The code example does not exercise them.
