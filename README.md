@@ -76,8 +76,8 @@ disclosure packages to disk.
 | [model_calls.py](examples/model_calls.py) | Disclose chosen claims of chosen items of model-call evidence and verify such a presentation. |
 | [mcp.py](examples/mcp.py) | The accepted conversion of an MCP result into the model's input. |
 | [tool_evidence.py](examples/tool_evidence.py) | The tool statement profile and an executor that verifies the request, dispatches once and signs. |
-| [tool_record.py](examples/tool_record.py) | Link checks, the admission status and the receiving service's path for one tool record. |
-| [run_tool.py](examples/run_tool.py) | Run the tool admission example and its rejection table. |
+| [tool_record.py](examples/tool_record.py) | The receiving service's path from one returned tool record to a status: verification, the reference, link checks and the admission rules. |
+| [run_tool.py](examples/run_tool.py) | Run the tool admission example in two phases, the conversation and the return, with 30 rejection cases. |
 | [checks.py](examples/checks.py) | Assertions shared by the run scripts. |
 | [schemas/](schemas/) | JSON Schemas copied from the article. |
 | [fixtures/](fixtures/) | API call and App Server transcript used throughout the first article; `fixtures/tool/` holds the tool article's model calls, MCP results and tool catalog. |
