@@ -73,6 +73,8 @@ For the MCP example, `result.sha256` and `result.length` cover the UTF-8 bytes o
 
 To link the execution to the model call, the client presents the proxy's evidence, disclosing the tool name and arguments from one `function_call`. The verifier in the first article required every field to be disclosed. Here the selective presentation is checked against a schema in which selectively disclosable fields are optional; the executor separately requires the tool name and arguments so it can compare them with the request.
 
+The signed JWT still exposes metadata to the executor, including the issuer, subject, response ID, item types and call IDs.
+
 The reference is the SHA-256 digest of the exact UTF-8 bytes of the issuer-signed compact JWT, excluding disclosures and key binding, so it stays stable across different presentations. For another evidence format, the profile needs to define which signed bytes to hash. The signature and disclosed claims are verified separately.
 
 For example, a client can send the evidence with an MCP request using an application-defined `_meta` key:

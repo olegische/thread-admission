@@ -17,7 +17,7 @@ result:       hash of {"content":[{"type":"text","text":"Wrote export.csv (128 r
                        "structuredContent":{"exitCode":0}}
 ```
 
-The executor signs these claims and makes the statement available with the thread. The reference identifies the proxy's evidence presented with the request. In this example the executor declares that the output was computed; the receiving service decides whether to accept that claim. The [tool evidence profile](06-tool-statement.md) specifies the full statement and its schema.
+The executor signs these claims and makes the statement available with the thread. The reference identifies the proxy's evidence presented with the request. In this example the executor declares that the output was computed; the receiving service decides whether to accept that claim. A signature identifies the issuer, who can also sign a false account; a transparency log makes that statement durable and attributable. The [tool evidence profile](06-tool-statement.md) specifies the full statement and its schema.
 
 When the thread returns, the service checks signatures from issuers it accepts and compares the evidence: did the executor receive the arguments requested by the model, and was the result the executor reported sent to the model? A mismatch tells it that the values covered by the statements differ. We will work through these checks in the next section.
 

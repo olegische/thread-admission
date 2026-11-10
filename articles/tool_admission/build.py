@@ -19,8 +19,7 @@ PARTS = (
     "06-tool-statement.md",
     "07-experiment.md",
     "08-admission.md",
-    "09-limits.md",
-    "10-composition.md",
+    "09-composition.md",
 )
 OUTPUT = ROOT / "tool_admission_v01.md"
 

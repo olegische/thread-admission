@@ -32,7 +32,7 @@ to this repository. This project does not depend on that repository at runtime.
 ### Tool admission (draft)
 
 - [Assembled English draft](articles/tool_admission/tool_admission_v01.md)
-- [Eleven source sections](articles/tool_admission/parts/)
+- [Ten source sections](articles/tool_admission/parts/)
 - [Editorial notes and draft status](articles/tool_admission/README.md)
 - [Executed checks and limits](articles/tool_admission/notes/executed-checks.md)
 

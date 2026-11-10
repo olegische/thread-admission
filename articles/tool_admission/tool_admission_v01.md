@@ -77,7 +77,7 @@ result:       hash of {"content":[{"type":"text","text":"Wrote export.csv (128 r
                        "structuredContent":{"exitCode":0}}
 ```
 
-The executor signs these claims and makes the statement available with the thread. The reference identifies the proxy's evidence presented with the request. In this example the executor declares that the output was computed; the receiving service decides whether to accept that claim. The [tool evidence profile](parts/06-tool-statement.md) specifies the full statement and its schema.
+The executor signs these claims and makes the statement available with the thread. The reference identifies the proxy's evidence presented with the request. In this example the executor declares that the output was computed; the receiving service decides whether to accept that claim. A signature identifies the issuer, who can also sign a false account; a transparency log makes that statement durable and attributable. The [tool evidence profile](parts/06-tool-statement.md) specifies the full statement and its schema.
 
 When the thread returns, the service checks signatures from issuers it accepts and compares the evidence: did the executor receive the arguments requested by the model, and was the result the executor reported sent to the model? A mismatch tells it that the values covered by the statements differ. We will work through these checks in the next section.
 
@@ -156,6 +156,8 @@ Here is one way a runtime could construct that input:
 
 **Shown.** Model evidence shows that the result was sent to the model; the executor has not been established. The runtime removes the call and result from the restored tool history. It places an account of them in a new `user` message: the earlier model saw a success message, and the execution is unconfirmed. Later assistant messages may have relied on that result; the runtime includes their checked text in the same account.
 
+A tool statement carried with the thread must be preserved by each intermediary. If it is lost, the service has lost evidence; when model evidence still covers the result, the record becomes Shown.
+
 **Produced.** Accepted tool evidence reports the result, but the service does not know whether the previous model received it. The runtime places the executor's report in a new `user` message as information about prior work and states that the model's receipt is unknown. It includes later assistant messages as an account of the returned history, with that gap made clear.
 
 **Supplied.** The result has no accepted model or tool evidence. The runtime places the call and result in a new `user` message as claims from the returned thread. It includes later assistant messages in the account with the missing evidence identified; it attributes their text to the model only if model evidence verifies it.
@@ -165,6 +167,8 @@ Here is one way a runtime could construct that input:
 The service may have both statements but find no accepted link between them, or the covered results may differ. In the example from the previous section, the executor reported a failure and the model saw a success message. The runtime can include both facts and the discrepancy in the history account; its policy can require checking the export before working with the file.
 
 A verified assistant response establishes what the model said. If it says the export succeeded after receiving an unverified result, the account retains that context. When the next action depends on a tool result, the service applies its policy, including any rules for the issuer and `source_class`.
+
+Evidence establishes origin and integrity relative to an issuer; the service separately decides whether the content is acceptable. Everything entering a model call passes through the service's input safeguards, regardless of evidence. When the service itself was the executor and applied its safeguards at execution time, restoring the record brings back a result it has already screened.
 
 ## From the tool result to the model
 
@@ -265,6 +269,8 @@ The `result` field carries the digest and length of the complete `CallToolResult
 For the MCP example, `result.sha256` and `result.length` cover the UTF-8 bytes of the complete `CallToolResult` encoded in JCS, including `content` and `structuredContent` when present. The holder keeps the full result for the receiver to check. The statement travels separately; it and the JSON-RPC wrapper are outside the hashed object.
 
 To link the execution to the model call, the client presents the proxy's evidence, disclosing the tool name and arguments from one `function_call`. The verifier in the first article required every field to be disclosed. Here the selective presentation is checked against a schema in which selectively disclosable fields are optional; the executor separately requires the tool name and arguments so it can compare them with the request.
+
+The signed JWT still exposes metadata to the executor, including the issuer, subject, response ID, item types and call IDs.
 
 The reference is the SHA-256 digest of the exact UTF-8 bytes of the issuer-signed compact JWT, excluding disclosures and key binding, so it stays stable across different presentations. For another evidence format, the profile needs to define which signed bytes to hash. The signature and disclosed claims are verified separately.
 
@@ -549,41 +555,18 @@ The proxy signs fixtures, and the executor and receiving service run in process.
 
 The verifier checks `vct` against a constant; no Type Metadata document is published for this example. The `sd-jwt` library limitation described in the first article remains: version `0.10.4` accepts unreferenced disclosures. The run does not exercise a real runtime's thread export and re-import.
 
-## What tool evidence does not establish
+## Conclusion
 
-Stated as a verifier would state them.
+A returned thread can contain tool results from executors the receiving service did not operate. Model evidence establishes what the model was shown, and the service also needs evidence of where a tool result came from.
 
-1. A tool statement attests the executor's observation, not the state of the world. A weather service attests the forecast it returned. A payment service attests that it submitted a transaction, or that it received a confirmation, whichever it saw. The record never says what the weather was or whether the money arrived.
-2. An executor can sign what it did not do. The signature establishes who made the statement, not that the statement is true. Registering statements with a transparency log makes a false statement durable and attributable; it does not make it impossible.
-3. The signed reference records the executor's account of which model request it processed. Matching results show that the covered values agree; they do not trace how identical bytes travelled through the client. The checks do not establish that the thread is complete or that no later call occurred.
-4. The absence of a tool statement does not establish that no operation took place. It establishes nothing, and the admission rules treat it as the normal case rather than as a finding.
-5. The source class is declared by the executor about itself. A server that declares `observer` while returning generated text is the second limit again, with a different field, and a control plane that keeps its own table of classes by tool identity is entitled to override the declaration.
-6. The profile carries one record per call with an `outcome`. It does not separate a decision made before the effect from the outcome observed after it, so it cannot answer "was this allowed" as distinct from "did this run". The Internet-Draft that continued SEP-2828 does separate them; the composition section says how the two fit.
-7. A statement carried inside the thread, in MCP's `_meta` or in a runtime's export, depends on every intermediary preserving it. A lost statement is lost evidence, not a verification failure, and the record it would have covered drops to Shown.
-8. Replay protection applies within one executor. Another executor that receives the same model evidence can issue its own statement, so the receiving service needs to handle multiple statements for one `call_id`.
-9. Selective disclosure hides selected values in the model evidence. The signed JWT still exposes metadata including issuer, subject, response ID, item types and call IDs, which the executor can see when the evidence is presented.
+- The executor signs a statement about the call, its arguments, its result and how it obtained that result, with a reference to the model-call evidence.
+- The receiving service verifies both statements, checks the reference and compares the values they cover.
+- Each tool record receives one of four statuses: Restored, Produced, Shown or Supplied.
+- Restored links the executor's result to what the model was shown. The service's policy uses the source class to decide whether that result can support an action.
 
-### Three questions this article does not answer
+Two questions remain for future work: how to admit separate records of a decision before an operation and its outcome, as described in the work following SEP-2828, and how to verify chains of evidence passed between agents.
 
-Readers of the MCP threads will bring three questions here that belong elsewhere, and it is better to say so than to let them look for answers in the admission rules.
-
-Which issuers to trust is the verifier's configuration, exactly as the trusted public key was in the earlier article: an allow-list, the operator's own gateway, a federation. The profile consumes that decision and does not make it. A statement from an issuer the service does not accept is treated as no statement, and the record it covers is Shown or Supplied. A server offering tools for breaking into things, with a perfectly valid signature, gets nothing more than that.
-
-Whether the content is safe is the job of the input safeguards, which run on everything that enters a model call whether or not it carries evidence. Tool evidence attests origin and integrity relative to an issuer; it never certifies content as acceptable or an issuer as acceptable. The output of an unfiltered model behind an MCP server enters the next model call as client-supplied content and is screened as such. The one place where evidence and safeguards meet is the case from the earlier article: when the executor is the service itself, its own safeguards ran at execution time, and restoring the record restores a result it has already screened. What ran through the service is restored; what ran past it is new input.
-
-Which tools the agent may call is authority, not standing: tool allow-lists, call policies, mandates. A returned record of a call to a forbidden tool is a record; whether the agent could have made that call, and whether it may make the next one, is decided by the environment it is running in now. That layer is specified elsewhere and is not touched here.
-
-## Where this fits
-
-**Inference admission is the base.** The earlier article's model-call evidence and this article's tool-call evidence use independent issuers and formats. The executor can refer to existing model evidence in its own statement; the model issuer does not need to issue a tool statement or use the tool statement's `vct` type. A receiving service verifies both and checks the reference and covered data.
-
-**Existing records can contribute evidence.** SEP-2787 describes a request attestation; SEP-2828 and its successor describe decisions and outcomes. Other proposals use in-toto statements for agent audit records. A receiving service can verify a supported format and use the claims it actually covers. Whether those claims identify an executor, a call, its arguments, result or source class depends on the record and issuer; missing claims cannot be assumed.
-
-**Where standing meets authority.** Admission produces typed records and stops. What a control plane does with `source_class` is its policy: which actions may be grounded on a generated result, which tools of which class may be called in which context, whether its own table of classes overrides an executor's declaration. This article gives one illustration of such a policy, the rejection of a generator's output as grounds for an action that needs an observation, and marks it as the control plane's rule, not admission's. The authority layer, mandates, allow-lists, gates, is a separate specification. This is the one point where the two layers touch, and the article keeps it to one point.
-
-**Two records in time.** The decision-before-effect and outcome-after-effect split of SEP-2828 and the Verification Summary Attestation answers a question this profile does not ask, whether an operation was allowed. Admitting a thread that carries both records, with the outcome pinning the decision's digest, is the next piece of work.
-
-**Lineage across agents.** The model closes on itself. An agent's output handed to another agent is, for the receiver, an input artifact of the same kind as a tool result: produced by an executor it did not run. The first agent's operator can issue a statement of the same shape as tool evidence, its result the handoff artifact, its class `generator`, with references by digest to the statements it consumed, the weather tool's statement, its own model statements. In in-toto terms these are `materials` and `subject`; in PROV terms, `used` and `wasGeneratedBy`; the alternating chain of one thread is the special case with one issuer of each kind. The receiving agent applies the four statuses twice. To continue the first agent's text it needs only the first agent's statement. To act on the weather it follows the references to the weather tool's statement and verifies that itself, under its own issuer configuration, independent of the first agent's word. One invariant makes this safe and its absence makes it laundering: references do not raise the class. A statement that cites an observer's statement is still a generator's statement. An action that needs an observation needs a path to an observer-class leaf from an accepted issuer with passing link checks; generator nodes along the path may transform, they may not originate. Repackaging a record is not corroboration. Specifying this across several issuers is open work; the article names it and leaves it.
+The discussions in the MCP community, cited in section 1, informed this work.
 
 ### Run the examples
 
